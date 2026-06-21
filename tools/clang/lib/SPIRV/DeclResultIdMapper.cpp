@@ -4953,8 +4953,7 @@ SpirvVariable *DeclResultIdMapper::createRayTracingNVStageVar(
   return retVal;
 }
 
-bool DeclResultIdMapper::tryToCreateConstantVar(const ValueDecl *decl) {
-  // TODO: support spirv basic type with constant intrinsic. (e.g. int8)
+  bool DeclResultIdMapper::tryToCreateConstantVar(const ValueDecl *decl) {
   const VarDecl *varDecl = dyn_cast<VarDecl>(decl);
   if (!varDecl)
     return false;
@@ -4992,6 +4991,13 @@ bool DeclResultIdMapper::tryToCreateConstantVar(const ValueDecl *decl) {
     break;
   case BuiltinType::LongLong: // int64_t
     constVal = spvBuilder.getConstantInt(astContext.LongLongTy, val->getInt());
+    break;
+  case BuiltinType::SChar: // int8_t
+    constVal = spvBuilder.getConstantInt(astContext.SignedCharTy, val->getInt());
+    break;
+  case BuiltinType::UChar: // uint8_t
+    constVal =
+        spvBuilder.getConstantInt(astContext.UnsignedCharTy, val->getInt());
     break;
   case BuiltinType::Half: // float16_t
     constVal = spvBuilder.getConstantFloat(astContext.HalfTy, val->getFloat());

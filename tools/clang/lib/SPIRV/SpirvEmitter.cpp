@@ -2095,7 +2095,8 @@ void SpirvEmitter::doVarDecl(const VarDecl *decl) {
        isBuffer(decl->getType()) || isRWBuffer(decl->getType()))) {
     const auto sampledType = hlsl::GetHLSLResourceResultType(decl->getType());
     if (isFloatOrVecMatOfFloatType(sampledType) &&
-        isOrContains16BitType(sampledType, spirvOptions.enable16BitTypes)) {
+        (isOrContains16BitType(sampledType, spirvOptions.enable16BitTypes) ||
+         isOrContains8BitType(sampledType))) {
       emitError("The sampled type for textures cannot be a floating point type "
                 "smaller than 32-bits when targeting a Vulkan environment.",
                 loc);

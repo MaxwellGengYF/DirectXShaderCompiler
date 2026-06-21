@@ -4512,6 +4512,8 @@ public:
       case HLSLScalarType_int32:
       case HLSLScalarType_uint16:
       case HLSLScalarType_uint32:
+      case HLSLScalarType_int8:
+      case HLSLScalarType_uint8:
         m_sema->Diag(Loc, diag::err_hlsl_unsupported_keyword_for_version)
             << HLSLScalarTypeNames[type] << "2018";
         return false;
@@ -4525,6 +4527,18 @@ public:
       case HLSLScalarType_int16:
       case HLSLScalarType_uint16:
         m_sema->Diag(Loc, diag::err_hlsl_unsupported_keyword_for_min_precision)
+            << HLSLScalarTypeNames[type];
+        return false;
+      default:
+        break;
+      }
+    }
+    // int8_t/uint8_t are only supported with -spirv (Vulkan SPIR-V backend).
+    if (!getSema()->getLangOpts().SPIRV) {
+      switch (type) {
+      case HLSLScalarType_int8:
+      case HLSLScalarType_uint8:
+        m_sema->Diag(Loc, diag::err_hlsl_unsupported_keyword_for_spirv)
             << HLSLScalarTypeNames[type];
         return false;
       default:
@@ -4839,6 +4853,10 @@ public:
         return AR_BASIC_INT64;
       case BuiltinType::ULongLong:
         return AR_BASIC_UINT64;
+      case BuiltinType::SChar:
+        return AR_BASIC_INT8;
+      case BuiltinType::UChar:
+        return AR_BASIC_UINT8;
       case BuiltinType::Min12Int:
         return AR_BASIC_MIN12INT;
       case BuiltinType::Min16Float:
@@ -4936,9 +4954,9 @@ public:
     case AR_BASIC_LITERAL_INT:
       return HLSLScalarType_int_lit;
     case AR_BASIC_INT8:
-      return HLSLScalarType_int;
+      return HLSLScalarType_int8;
     case AR_BASIC_UINT8:
-      return HLSLScalarType_uint;
+      return HLSLScalarType_uint8;
     case AR_BASIC_INT16:
       return HLSLScalarType_int16;
     case AR_BASIC_UINT16:
@@ -4994,9 +5012,9 @@ public:
     case AR_BASIC_LITERAL_INT:
       return m_context->LitIntTy;
     case AR_BASIC_INT8:
-      return m_context->IntTy;
+      return m_context->SignedCharTy;
     case AR_BASIC_UINT8:
-      return m_context->UnsignedIntTy;
+      return m_context->UnsignedCharTy;
     case AR_BASIC_INT16:
       return m_context->ShortTy;
     case AR_BASIC_UINT16:
@@ -6624,6 +6642,8 @@ void HLSLExternalSource::AddBaseTypes() {
   m_baseTypes[HLSLScalarType_float16] = m_context->HalfTy;
   m_baseTypes[HLSLScalarType_float32] = m_context->FloatTy;
   m_baseTypes[HLSLScalarType_float64] = m_context->DoubleTy;
+  m_baseTypes[HLSLScalarType_int8] = m_context->SignedCharTy;
+  m_baseTypes[HLSLScalarType_uint8] = m_context->UnsignedCharTy;
 }
 
 void HLSLExternalSource::AddHLSLScalarTypes() {

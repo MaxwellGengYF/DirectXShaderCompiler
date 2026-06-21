@@ -55,6 +55,12 @@ void CapabilityVisitor::addCapabilityForType(const SpirvType *type,
     switch (intType->getBitwidth()) {
     case 8: {
       addCapability(spv::Capability::Int8);
+
+      // Usage of an 8-bit integer type as stage I/O.
+      if (sc == spv::StorageClass::Input || sc == spv::StorageClass::Output) {
+        addExtension(Extension::KHR_8bit_storage, "8-bit stage IO variables",
+                     loc);
+      }
       break;
     }
     case 16: {
