@@ -1334,9 +1334,17 @@ private:
                               const clang::FunctionDecl *,
                               bool isEntryFunction);
 
-  /// \brief Helper function to run SPIRV-Tools optimizer's performance passes.
-  /// Runs the SPIRV-Tools optimizer on the given SPIR-V module |mod|, and
-  /// gets the info/warning/error messages via |messages|.
+  /// Maximum number of fixed-point iterations for the SPIR-V optimizer.
+  /// The optimizer will run repeatedly up to this many times or until the
+  /// binary size stabilizes (no change between iterations).
+  static constexpr unsigned kSpirvOptMaxIterations = 5;
+
+  /// \brief Helper function to run SPIRV-Tools optimizer's performance passes
+  /// with fixed-point iteration.
+  /// Runs the SPIRV-Tools optimizer repeatedly (up to kSpirvOptMaxIterations
+  /// times) on the given SPIR-V module |mod| until the binary size stabilizes
+  /// (i.e., no size change between iterations). Gets info/warning/error messages
+  /// via |messages|.
   /// Returns true on success and false otherwise.
   bool spirvToolsOptimize(std::vector<uint32_t> *mod, std::string *messages);
 

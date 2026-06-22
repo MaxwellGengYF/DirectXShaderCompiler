@@ -16823,7 +16823,27 @@ bool SpirvEmitter::spirvToolsOptimize(std::vector<uint32_t> *mod,
       return false;
   }
 
-  return optimizer.Run(mod->data(), mod->size(), mod, options);
+  // ---- Fixed-point iteration loop ----
+  // Run the optimizer repeatedly until the binary size stabilizes
+  // or the maximum number of iterations is reached.
+  std::vector<uint32_t> optimized;
+  for (unsigned iter = 0; iter < kSpirvOptMaxIterations; ++iter) {
+    if (!optimizer.Run(mod->data(), mod->size(), &optimized, options)) {
+      // Optimization failure — stop iterating and report the error.
+      return false;
+    }
+    // Check for convergence: if the size hasn't changed, we're done.
+    if (optimized.size() == mod->size()) {
+      // No change; optionally check if content is identical for full convergence.
+      // For now, size stability is considered converged.
+      break;
+    }
+    // Update mod with the optimized result for the next iteration.
+    mod->swap(optimized);
+    optimized.clear();
+  }
+
+  return true;
 }
 
 bool SpirvEmitter::spirvToolsLegalize(std::vector<uint32_t> *mod,
