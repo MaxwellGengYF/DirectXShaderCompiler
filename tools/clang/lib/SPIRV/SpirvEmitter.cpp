@@ -149,14 +149,15 @@ bool isReferencingNonAliasStructuredOrByteBuffer(const Expr *expr) {
 }
 
 /// Translates atomic HLSL opcodes into the equivalent SPIR-V opcode.
-spv::Op translateAtomicHlslOpcodeToSpirvOpcode(hlsl::IntrinsicOp opcode) {
+spv::Op translateAtomicHlslOpcodeToSpirvOpcode(hlsl::IntrinsicOp opcode,
+                                               bool isFloat = false) {
   using namespace hlsl;
   using namespace spv;
 
   switch (opcode) {
   case IntrinsicOp::IOP_InterlockedAdd:
   case IntrinsicOp::MOP_InterlockedAdd:
-    return Op::OpAtomicIAdd;
+    return isFloat ? Op::OpAtomicFAddEXT : Op::OpAtomicIAdd;
   case IntrinsicOp::IOP_InterlockedAnd:
   case IntrinsicOp::MOP_InterlockedAnd:
     return Op::OpAtomicAnd;
@@ -174,13 +175,21 @@ spv::Op translateAtomicHlslOpcodeToSpirvOpcode(hlsl::IntrinsicOp opcode) {
     return Op::OpAtomicUMin;
   case IntrinsicOp::IOP_InterlockedMax:
   case IntrinsicOp::MOP_InterlockedMax:
-    return Op::OpAtomicSMax;
+    return isFloat ? Op::OpAtomicFMaxEXT : Op::OpAtomicSMax;
   case IntrinsicOp::IOP_InterlockedMin:
   case IntrinsicOp::MOP_InterlockedMin:
-    return Op::OpAtomicSMin;
+    return isFloat ? Op::OpAtomicFMinEXT : Op::OpAtomicSMin;
   case IntrinsicOp::IOP_InterlockedExchange:
   case IntrinsicOp::MOP_InterlockedExchange:
+  case IntrinsicOp::MOP_InterlockedExchangeFloat:
     return Op::OpAtomicExchange;
+  case IntrinsicOp::IOP_InterlockedCompareExchangeFloatBitwise:
+  case IntrinsicOp::MOP_InterlockedCompareExchangeFloatBitwise:
+  case IntrinsicOp::IOP_InterlockedCompareStoreFloatBitwise:
+  case IntrinsicOp::MOP_InterlockedCompareStoreFloatBitwise:
+    // These are handled via createAtomicCompareExchange, not this function.
+    // If reached, fall through to error.
+    break;
   default:
     // Only atomic opcodes are relevant.
     break;
@@ -4219,8 +4228,39 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
   // The signature of RWByteAddressBuffer atomic methods are largely:
   // void Interlocked*(in UINT dest, in UINT value);
   // void Interlocked*(in UINT dest, in UINT value, out UINT original_value);
+  //
+  // Note: RWByteAddressBuffer is represented as an array of 32-bit unsigned
+  // integers in SPIR-V. Float atomic operations (InterlockedMin/Max with float
+  // value type) are not directly supported on this buffer type because the
+  // SPIR-V float atomic instructions require a float-typed pointer, but the
+  // underlying buffer is always uint-typed. For float atomics, use typed
+  // buffers (RWBuffer<float> or RWStructuredBuffer<float>) or groupshared
+  // float variables instead.
   const auto *object = expr->getImplicitObjectArgument();
   auto *objectInfo = loadIfAliasVarRef(object);
+
+  // Check if this is a float atomic operation. Look through implicit casts
+  // to determine the true argument type (the frontend may have inserted an
+  // int→float cast if it resolved to the float overload).
+  const Expr *valueArg = expr->getArg(1);
+  const bool isFloat = valueArg->getType()->isFloatingType();
+  // If the value argument has an implicit int→float cast, treat it as integer.
+  const bool isFloatMinMax =
+      isFloat && (opcode == hlsl::IntrinsicOp::MOP_InterlockedMin ||
+                  opcode == hlsl::IntrinsicOp::MOP_InterlockedMax) &&
+      // Only error if the argument was truly float (no int→float cast).
+      !(isa<ImplicitCastExpr>(valueArg) &&
+        cast<ImplicitCastExpr>(valueArg)->getSubExpr()
+                ->getType()
+                ->isIntegerType());
+
+  if (isFloatMinMax) {
+    emitError("Float InterlockedMin/Max on RWByteAddressBuffer is not "
+              "supported in SPIR-V. Use RWBuffer<float> or "
+              "RWStructuredBuffer<float> instead.",
+              expr->getExprLoc());
+    return nullptr;
+  }
 
   auto *zero =
       spvBuilder.getConstantInt(astContext.UnsignedIntTy, llvm::APInt(32, 0));
@@ -4237,23 +4277,53 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
                                            object->getLocStart(), range);
 
   const bool isCompareExchange =
-      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareExchange;
+      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareExchange ||
+      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareExchangeFloatBitwise;
   const bool isCompareStore =
-      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareStore;
+      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareStore ||
+      opcode == hlsl::IntrinsicOp::MOP_InterlockedCompareStoreFloatBitwise;
 
   if (isCompareExchange || isCompareStore) {
     auto *comparator = doExpr(expr->getArg(1));
+    auto *valueInstr = doExpr(expr->getArg(2));
+
+    // For float bitwise variants, bitcast float operands to uint32 before the
+    // atomic compare-exchange (which only supports integer types).
+    const bool isFloatBitwise =
+        opcode ==
+            hlsl::IntrinsicOp::MOP_InterlockedCompareExchangeFloatBitwise ||
+        opcode ==
+            hlsl::IntrinsicOp::MOP_InterlockedCompareStoreFloatBitwise;
+    if (isFloatBitwise) {
+      comparator = spvBuilder.createUnaryOp(spv::Op::OpBitcast,
+                                            astContext.UnsignedIntTy, comparator,
+                                            expr->getCallee()->getExprLoc(),
+                                            range);
+      valueInstr = spvBuilder.createUnaryOp(spv::Op::OpBitcast,
+                                            astContext.UnsignedIntTy, valueInstr,
+                                            expr->getCallee()->getExprLoc(),
+                                            range);
+    }
+
     SpirvInstruction *originalVal = spvBuilder.createAtomicCompareExchange(
         astContext.UnsignedIntTy, ptr, spv::Scope::Device,
         spv::MemorySemanticsMask::MaskNone, spv::MemorySemanticsMask::MaskNone,
-        doExpr(expr->getArg(2)), comparator, expr->getCallee()->getExprLoc(),
-        range);
+        valueInstr, comparator, expr->getCallee()->getExprLoc(), range);
+
     if (isCompareExchange) {
       auto *resultAddress = expr->getArg(3);
       QualType resultType = resultAddress->getType();
-      if (resultType != astContext.UnsignedIntTy)
+      // For float bitwise, bitcast the uint result back to float for output.
+      if (isFloatBitwise) {
+        originalVal = spvBuilder.createUnaryOp(spv::Op::OpBitcast,
+                                               astContext.FloatTy, originalVal,
+                                               expr->getCallee()->getExprLoc(),
+                                               range);
+      } else if (resultType != astContext.UnsignedIntTy) {
+        // For integer compare-exchange, cast uint result to the output type.
         originalVal = castToInt(originalVal, astContext.UnsignedIntTy,
                                 resultType, expr->getArg(3)->getLocStart());
+      }
       spvBuilder.createStore(doExpr(expr->getArg(3)), originalVal,
                              expr->getArg(3)->getLocStart(), range);
     }
@@ -5732,8 +5802,11 @@ SpirvEmitter::processIntrinsicMemberCall(const CXXMemberCallExpr *expr,
   case IntrinsicOp::MOP_InterlockedMax:
   case IntrinsicOp::MOP_InterlockedMin:
   case IntrinsicOp::MOP_InterlockedExchange:
+  case IntrinsicOp::MOP_InterlockedExchangeFloat:
   case IntrinsicOp::MOP_InterlockedCompareExchange:
+  case IntrinsicOp::MOP_InterlockedCompareExchangeFloatBitwise:
   case IntrinsicOp::MOP_InterlockedCompareStore:
+  case IntrinsicOp::MOP_InterlockedCompareStoreFloatBitwise:
     retVal = processRWByteAddressBufferAtomicMethods(opcode, expr);
     break;
   case IntrinsicOp::MOP_GetSamplePosition:
@@ -9504,6 +9577,8 @@ SpirvEmitter::processIntrinsicCallExpr(const CallExpr *callExpr) {
   case hlsl::IntrinsicOp::IOP_InterlockedExchange:
   case hlsl::IntrinsicOp::IOP_InterlockedCompareStore:
   case hlsl::IntrinsicOp::IOP_InterlockedCompareExchange:
+  case hlsl::IntrinsicOp::IOP_InterlockedCompareStoreFloatBitwise:
+  case hlsl::IntrinsicOp::IOP_InterlockedCompareExchangeFloatBitwise:
     retVal = processIntrinsicInterlockedMethod(callExpr, hlslOpcode);
     break;
   case hlsl::IntrinsicOp::IOP_NonUniformResourceIndex:
@@ -10502,23 +10577,60 @@ SpirvEmitter::processIntrinsicInterlockedMethod(const CallExpr *expr,
     return nullptr;
   }
 
-  const auto doArg = [baseType, this](const CallExpr *callExpr,
+  const bool isFloat = baseType->isFloatingType();
+
+  // Request necessary extensions and capabilities for float atomics.
+  if (isFloat) {
+    const auto width = astContext.getTypeSize(baseType);
+    if (opcode == hlsl::IntrinsicOp::IOP_InterlockedMin ||
+        opcode == hlsl::IntrinsicOp::IOP_InterlockedMax) {
+      spvBuilder.requireExtension("SPV_EXT_shader_atomic_float_min_max",
+                                  srcLoc);
+      if (width == 32)
+        spvBuilder.requireCapability(spv::Capability::AtomicFloat32MinMaxEXT,
+                                     srcLoc);
+      else if (width == 64)
+        spvBuilder.requireCapability(spv::Capability::AtomicFloat64MinMaxEXT,
+                                     srcLoc);
+    } else {
+      spvBuilder.requireExtension("SPV_EXT_shader_atomic_float_add", srcLoc);
+      if (width == 32)
+        spvBuilder.requireCapability(spv::Capability::AtomicFloat32AddEXT,
+                                     srcLoc);
+      else if (width == 64)
+        spvBuilder.requireCapability(spv::Capability::AtomicFloat64AddEXT,
+                                     srcLoc);
+    }
+  }
+
+  const auto doArg = [baseType, isFloat, this](const CallExpr *callExpr,
                                       uint32_t argIndex) {
     const Expr *valueExpr = callExpr->getArg(argIndex);
-    if (const auto *castExpr = dyn_cast<ImplicitCastExpr>(valueExpr))
-      if (castExpr->getCastKind() == CK_IntegralCast &&
+    if (const auto *castExpr = dyn_cast<ImplicitCastExpr>(valueExpr)) {
+      if (isFloat && castExpr->getCastKind() == CK_FloatingCast &&
           castExpr->getSubExpr()->getType()->getCanonicalTypeUnqualified() ==
               baseType)
         valueExpr = castExpr->getSubExpr();
+      else if (!isFloat && castExpr->getCastKind() == CK_IntegralCast &&
+               castExpr->getSubExpr()
+                       ->getType()
+                       ->getCanonicalTypeUnqualified() == baseType)
+        valueExpr = castExpr->getSubExpr();
+    }
 
     auto *argInstr = doExpr(valueExpr);
-    if (valueExpr->getType() != baseType)
-      argInstr = castToInt(argInstr, valueExpr->getType(), baseType,
-                           valueExpr->getExprLoc());
+    if (valueExpr->getType() != baseType) {
+      if (isFloat)
+        argInstr = castToFloat(argInstr, valueExpr->getType(), baseType,
+                               valueExpr->getExprLoc());
+      else
+        argInstr = castToInt(argInstr, valueExpr->getType(), baseType,
+                             valueExpr->getExprLoc());
+    }
     return argInstr;
   };
 
-  const auto writeToOutputArg = [&baseType, dest,
+  const auto writeToOutputArg = [&baseType, isFloat, dest,
                                  this](SpirvInstruction *toWrite,
                                        const CallExpr *callExpr,
                                        uint32_t outputArgIndex) {
@@ -10531,9 +10643,14 @@ SpirvEmitter::processIntrinsicInterlockedMethod(const CallExpr *expr,
     }
 
     const auto outputArgType = outputArg->getType();
-    if (baseType != outputArgType)
-      toWrite =
-          castToInt(toWrite, baseType, outputArgType, dest->getLocStart());
+    if (baseType != outputArgType) {
+      if (isFloat)
+        toWrite = castToFloat(toWrite, baseType, outputArgType,
+                              dest->getLocStart());
+      else
+        toWrite =
+            castToInt(toWrite, baseType, outputArgType, dest->getLocStart());
+    }
     spvBuilder.createStore(doExpr(outputArg), toWrite, callExpr->getExprLoc());
   };
 
@@ -10609,21 +10726,46 @@ SpirvEmitter::processIntrinsicInterlockedMethod(const CallExpr *expr,
                          : spv::Scope::Device;
 
   const bool isCompareExchange =
-      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareExchange;
+      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareExchange ||
+      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareExchangeFloatBitwise;
   const bool isCompareStore =
-      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareStore;
+      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareStore ||
+      opcode == hlsl::IntrinsicOp::IOP_InterlockedCompareStoreFloatBitwise;
 
   if (isCompareExchange || isCompareStore) {
     auto *comparator = doArg(expr, 1);
     auto *valueInstr = doArg(expr, 2);
-    auto *originalVal = spvBuilder.createAtomicCompareExchange(
+
+    // For float bitwise variants, the atomic compare-exchange must be done on
+    // uint32 (since OpAtomicCompareExchange only supports integer types).
+    // However, SPIR-V's logical addressing model forbids OpBitcast on pointers,
+    // so we cannot convert a float* pointer to uint*. These intrinsics are
+    // only supported on RWByteAddressBuffer (which is already uint32-typed).
+    const bool isFloatBitwise =
+        opcode ==
+            hlsl::IntrinsicOp::IOP_InterlockedCompareExchangeFloatBitwise ||
+        opcode ==
+            hlsl::IntrinsicOp::IOP_InterlockedCompareStoreFloatBitwise;
+
+    if (isFloatBitwise) {
+      emitError("InterlockedCompareExchangeFloatBitwise and "
+                "InterlockedCompareStoreFloatBitwise are only supported on "
+                "RWByteAddressBuffer when targeting Vulkan SPIR-V. Use "
+                "RWByteAddressBuffer methods instead of groupshared float "
+                "or RWBuffer/RWStructuredBuffer<float>.",
+                expr->getExprLoc());
+      return nullptr;
+    }
+
+    SpirvInstruction *originalVal = spvBuilder.createAtomicCompareExchange(
         baseType, ptr, scope, spv::MemorySemanticsMask::MaskNone,
         spv::MemorySemanticsMask::MaskNone, valueInstr, comparator, srcLoc);
     if (isCompareExchange)
       writeToOutputArg(originalVal, expr, 3);
   } else {
     auto *value = doArg(expr, 1);
-    spv::Op atomicOp = translateAtomicHlslOpcodeToSpirvOpcode(opcode);
+    spv::Op atomicOp =
+        translateAtomicHlslOpcodeToSpirvOpcode(opcode, isFloat);
     auto *originalVal = spvBuilder.createAtomicOp(
         atomicOp, baseType, ptr, scope, spv::MemorySemanticsMask::MaskNone,
         value, srcLoc);

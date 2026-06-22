@@ -815,6 +815,38 @@ bool CapabilityVisitor::visit(SpirvAtomic *instr) {
                                instr->getValue()->getResultType())) {
     addCapability(spv::Capability::Int64Atomics, instr->getSourceLocation());
   }
+
+  // Add capabilities and extensions for float atomics.
+  spv::Op op = instr->getopcode();
+  if (op == spv::Op::OpAtomicFAddEXT) {
+    auto *resultType = instr->getResultType();
+    if (SpirvType::isOrContainsType<FloatType, 32>(resultType))
+      addCapability(spv::Capability::AtomicFloat32AddEXT,
+                    instr->getSourceLocation());
+    else if (SpirvType::isOrContainsType<FloatType, 64>(resultType))
+      addCapability(spv::Capability::AtomicFloat64AddEXT,
+                    instr->getSourceLocation());
+    else if (SpirvType::isOrContainsType<FloatType, 16>(resultType))
+      addCapability(spv::Capability::AtomicFloat16AddEXT,
+                    instr->getSourceLocation());
+    addExtension(Extension::EXT_shader_atomic_float_add,
+                 "float atomic add", instr->getSourceLocation());
+  }
+  if (op == spv::Op::OpAtomicFMinEXT || op == spv::Op::OpAtomicFMaxEXT) {
+    auto *resultType = instr->getResultType();
+    if (SpirvType::isOrContainsType<FloatType, 32>(resultType))
+      addCapability(spv::Capability::AtomicFloat32MinMaxEXT,
+                    instr->getSourceLocation());
+    else if (SpirvType::isOrContainsType<FloatType, 64>(resultType))
+      addCapability(spv::Capability::AtomicFloat64MinMaxEXT,
+                    instr->getSourceLocation());
+    else if (SpirvType::isOrContainsType<FloatType, 16>(resultType))
+      addCapability(spv::Capability::AtomicFloat16MinMaxEXT,
+                    instr->getSourceLocation());
+    addExtension(Extension::EXT_shader_atomic_float_min_max,
+                 "float atomic min/max", instr->getSourceLocation());
+  }
+
   return true;
 }
 

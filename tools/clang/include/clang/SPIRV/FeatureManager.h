@@ -69,6 +69,8 @@ enum class Extension {
   KHR_quad_control,
   EXT_descriptor_heap,
   KHR_untyped_pointers,
+  EXT_shader_atomic_float_add,
+  EXT_shader_atomic_float_min_max,
   Unknown,
 };
 

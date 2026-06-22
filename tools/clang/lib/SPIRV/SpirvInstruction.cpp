@@ -483,7 +483,10 @@ SpirvAtomic::SpirvAtomic(spv::Op op, QualType resultType, SourceLocation loc,
       op == spv::Op::OpAtomicXor || op == spv::Op::OpAtomicIAdd ||
       op == spv::Op::OpAtomicISub || op == spv::Op::OpAtomicSMin ||
       op == spv::Op::OpAtomicUMin || op == spv::Op::OpAtomicSMax ||
-      op == spv::Op::OpAtomicUMax || op == spv::Op::OpAtomicExchange);
+      op == spv::Op::OpAtomicUMax || op == spv::Op::OpAtomicExchange ||
+      op == spv::Op::OpAtomicFAddEXT ||
+      op == spv::Op::OpAtomicFMinEXT ||
+      op == spv::Op::OpAtomicFMaxEXT);
 }
 
 SpirvAtomic::SpirvAtomic(spv::Op op, QualType resultType, SourceLocation loc,
@@ -965,7 +968,9 @@ SpirvImageTexelPointer::SpirvImageTexelPointer(QualType resultType,
                                                SpirvInstruction *sampleInst)
     : SpirvInstruction(IK_ImageTexelPointer, spv::Op::OpImageTexelPointer,
                        resultType, loc),
-      image(imageInst), coordinate(coordinateInst), sample(sampleInst) {}
+      image(imageInst), coordinate(coordinateInst), sample(sampleInst) {
+  setStorageClass(spv::StorageClass::Image);
+}
 
 SpirvUntypedImageTexelPointerEXT::SpirvUntypedImageTexelPointerEXT(
     QualType resultType, SourceLocation loc, SpirvInstruction *imageInst,

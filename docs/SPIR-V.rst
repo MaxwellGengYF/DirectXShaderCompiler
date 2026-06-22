@@ -336,6 +336,8 @@ Supported extensions
 * SPV_KHR_float_controls
 * SPV_NV_shader_subgroup_partitioned
 * SPV_KHR_quad_control
+* SPV_EXT_shader_atomic_float_add
+* SPV_EXT_shader_atomic_float_min_max
 
 Vulkan specific attributes
 --------------------------
@@ -2540,15 +2542,20 @@ The following intrinsic HLSL functions have direct SPIR-V opcodes for them:
 ``fwidth``                           ``OpFwidth``
 ``GroupMemoryBarrier``               ``OpMemoryBarrier``
 ``GroupMemoryBarrierWithGroupSync``  ``OpControlBarrier``
-``InterlockedAdd``                   ``OpAtomicIAdd``
+``InterlockedAdd`` (integer)          ``OpAtomicIAdd``
+``InterlockedAdd`` (float)            ``OpAtomicFAddEXT``
 ``InterlockedAnd``                   ``OpAtomicAnd``
 ``InterlockedOr``                    ``OpAtomicOr``
 ``InterlockedXor``                   ``OpAtomicXor``
-``InterlockedMin``                   ``OpAtomicUMin``/``OpAtomicSMin``
-``InterlockedMax``                   ``OpAtomicUMax``/``OpAtomicSMax``
+``InterlockedMin`` (integer)          ``OpAtomicUMin``/``OpAtomicSMin``
+``InterlockedMin`` (float)            ``OpAtomicFMinEXT``
+``InterlockedMax`` (integer)          ``OpAtomicUMax``/``OpAtomicSMax``
+``InterlockedMax`` (float)            ``OpAtomicFMaxEXT``
 ``InterlockedExchange``              ``OpAtomicExchange``
 ``InterlockedCompareExchange``       ``OpAtomicCompareExchange``
 ``InterlockedCompareStore``          ``OpAtomicCompareExchange``
+``InterlockedCompareExchangeFloatBitwise`` ``OpAtomicCompareExchange`` (RWByteAddressBuffer only)
+``InterlockedCompareStoreFloatBitwise``    ``OpAtomicCompareExchange`` (RWByteAddressBuffer only)
 ``isnan``                            ``OpIsNan``
 ``isInf``                            ``OpIsInf``
 ``reversebits``                      ``OpBitReverse``
@@ -2784,15 +2791,38 @@ performing ``OpAccessChain``.
      HLSL Intrinsic Method                SPIR-V Opcode
 ================================= =================================
 ``.InterlockedAdd()``             ``OpAtomicIAdd``
+                                  (float overload: ``OpAtomicFAddEXT``)
 ``.InterlockedAnd()``             ``OpAtomicAnd``
 ``.InterlockedOr()``              ``OpAtomicOr``
 ``.InterlockedXor()``             ``OpAtomicXor``
 ``.InterlockedMin()``             ``OpAtomicUMin``/``OpAtomicSMin``
+                                  (float overload: ``OpAtomicFMinEXT``)
 ``.InterlockedMax()``             ``OpAtomicUMax``/``OpAtomicSMax``
+                                  (float overload: ``OpAtomicFMaxEXT``)
 ``.InterlockedExchange()``        ``OpAtomicExchange``
 ``.InterlockedCompareExchange()`` ``OpAtomicCompareExchange``
 ``.InterlockedCompareStore()``    ``OpAtomicCompareExchange``
+``.InterlockedCompareExchangeFloatBitwise()`` ``OpAtomicCompareExchange`` (RWByteAddressBuffer only)
+``.InterlockedCompareStoreFloatBitwise()``    ``OpAtomicCompareExchange`` (RWByteAddressBuffer only)
 ================================= =================================
+
+.. note::
+
+  Float ``InterlockedMin``/``InterlockedMax`` on ``RWByteAddressBuffer``
+  is not supported in SPIR-V because the buffer is represented as an array
+  of 32-bit unsigned integers and SPIR-V float atomic instructions require
+  a float-typed pointer. Use ``RWBuffer<float>`` or
+  ``RWStructuredBuffer<float>`` instead.
+
+  The ``FloatBitwise`` variants (``InterlockedCompareExchangeFloatBitwise``
+  and ``InterlockedCompareStoreFloatBitwise``) are only supported on
+  ``RWByteAddressBuffer`` in SPIR-V. This is because
+  ``OpAtomicCompareExchange`` in SPIR-V only supports integer types, and
+  SPIR-V's logical addressing model forbids bitcasting pointers between
+  incompatible types. Since ``RWByteAddressBuffer`` is represented as a
+  ``uint32`` array, the pointer is already the correct type. For
+  groupshared ``float``, ``RWBuffer<float>``, or
+  ``RWStructuredBuffer<float>``, use ``RWByteAddressBuffer`` instead.
 
 ``AppendStructuredBuffer``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

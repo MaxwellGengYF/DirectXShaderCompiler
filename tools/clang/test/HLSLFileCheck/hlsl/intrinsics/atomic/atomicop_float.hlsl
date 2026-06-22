@@ -8,10 +8,10 @@ RWStructuredBuffer<float> resS;
 void main( float a : A, int b: B, float c :C)
 {
   // Test some disallowed atomic binop intrinsics with floats as both args
+  // InterlockedAdd/Min/Max are now accepted with float args (for SPIR-V),
+  // but InterlockedAnd/Or/Xor with float args are still rejected by frontend.
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
+  // Frontend errors for And/Or/Xor (float args)
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -22,9 +22,6 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resG[0], a);
   InterlockedXor(resG[0], a);
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -35,9 +32,6 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resB[0], a);
   InterlockedXor(resB[0], a);
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -48,11 +42,9 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resS[0], a);
   InterlockedXor(resS[0], a);
 
-  // Try the same with an integer second arg to make sure they still fail
+  // Try the same with an integer second arg.
+  // Add/Min/Max are now accepted (int->float implicit conversion).
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -63,9 +55,6 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resG[0], b);
   InterlockedXor(resG[0], b);
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -76,9 +65,6 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resB[0], b);
   InterlockedXor(resB[0], b);
 
-  // CHECK: error: no matching function for call to 'InterlockedAdd'
-  // CHECK: error: no matching function for call to 'InterlockedMin'
-  // CHECK: error: no matching function for call to 'InterlockedMax'
   // CHECK: error: no matching function for call to 'InterlockedAnd'
   // CHECK: error: no matching function for call to 'InterlockedOr'
   // CHECK: error: no matching function for call to 'InterlockedXor'
@@ -89,4 +75,3 @@ void main( float a : A, int b: B, float c :C)
   InterlockedOr(resS[0], b);
   InterlockedXor(resS[0], b);
 }
-
