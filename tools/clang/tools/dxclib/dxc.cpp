@@ -137,13 +137,13 @@ private:
   HRESULT ReadFileIntoPartContent(hlsl::DxilFourCC fourCC, LPCWSTR fileName,
                                   IDxcBlob **ppResult);
 
-// Dia is only supported on Windows.
-#ifdef _WIN32
+// Dia is only supported with MSVC (DIA SDK).
+#ifdef DXC_SUPPORTS_DIA
   // TODO : Refactor two functions below. There are duplicate functions in
   // DxcContext in dxa.cpp
   HRESULT GetDxcDiaTable(IDxcLibrary *pLibrary, IDxcBlob *pTargetBlob,
                          IDiaTable **ppTable, LPCWSTR tableName);
-#endif // _WIN32
+#endif // DXC_SUPPORTS_DIA
 
   HRESULT FindModuleBlob(hlsl::DxilFourCC fourCC, IDxcBlob *pSource,
                          IDxcLibrary *pLibrary, IDxcBlob **ppTargetBlob);
@@ -1147,9 +1147,9 @@ HRESULT DxcContext::FindModuleBlob(hlsl::DxilFourCC fourCC, IDxcBlob *pSource,
   return E_INVALIDARG;
 }
 
-// This function is currently only supported on Windows due to usage of
+// This function is currently only supported with MSVC due to usage of
 // IDiaTable.
-#ifdef _WIN32
+#ifdef DXC_SUPPORTS_DIA
 // TODO : There is an identical code in DxaContext in Dxa.cpp. Refactor this
 // function.
 HRESULT DxcContext::GetDxcDiaTable(IDxcLibrary *pLibrary, IDxcBlob *pTargetBlob,

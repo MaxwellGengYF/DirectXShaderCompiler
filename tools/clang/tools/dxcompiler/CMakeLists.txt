@@ -103,11 +103,11 @@ set(LIBRARIES
   dxcvalidator
   )
 
-if(WIN32)
+if(MSVC)
   set(LIBRARIES
-    ${LIBRARIES} 
+    ${LIBRARIES}
     LLVMDxilDia)
-endif(WIN32)
+endif(MSVC)
 
 set(GENERATED_HEADERS
   ClangAttrClasses
@@ -125,10 +125,11 @@ if (MSVC)
 endif (MSVC)
 
 add_clang_library(dxcompiler SHARED ${SOURCES})
-add_dependencies(dxcompiler TablegenHLSLOptions) 
+add_dependencies(dxcompiler TablegenHLSLOptions)
 if (MSVC)
   # No DxcEtw on non-Windows platforms.
   add_dependencies(dxcompiler DxcEtw)
+  target_compile_definitions(dxcompiler PRIVATE DXC_SUPPORTS_DIA=1)
 endif()
 target_link_libraries(dxcompiler PRIVATE ${LIBRARIES})
 if (ENABLE_SPIRV_CODEGEN)
