@@ -7455,6 +7455,15 @@ class db_dxil(object):
             "Mutate resource to handle",
             [],
         )
+        add_pass(
+            "dxil-aggressive-opt",
+            "DxilAggressiveOptimize",
+            "DXIL Aggressive Fixed-Point Optimization",
+            [
+                {"n": "MaxIterations", "t": "unsigned", "c": 1,
+                 "d": "Maximum number of fixed-point iterations (default: 5)"},
+            ],
+        )
 
         category_lib = "llvm"
         add_pass(

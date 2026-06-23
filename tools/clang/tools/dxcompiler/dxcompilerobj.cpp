@@ -1600,6 +1600,10 @@ public:
     compiler.getCodeGenOpts().HLSLResMayAlias = Opts.ResMayAlias;
     compiler.getCodeGenOpts().ScanLimit = Opts.ScanLimit;
     compiler.getCodeGenOpts().HLSLOptimizationToggles = Opts.OptToggles;
+    compiler.getCodeGenOpts().DxilOptConfig = Opts.DxilOptConfig;
+    compiler.getCodeGenOpts().DxilOptMaxIterations = Opts.DxilOptMaxIterations;
+    compiler.getCodeGenOpts().DxilOptPrintEach = Opts.DxilOptPrintEach;
+    compiler.getCodeGenOpts().DxilOptValidateEach = Opts.DxilOptValidateEach;
     compiler.getCodeGenOpts().HLSLAllResourcesBound = Opts.AllResourcesBound;
     compiler.getCodeGenOpts().HLSLIgnoreOptSemDefs = Opts.IgnoreOptSemDefs;
     compiler.getCodeGenOpts().HLSLIgnoreSemDefs = Opts.IgnoreSemDefs;

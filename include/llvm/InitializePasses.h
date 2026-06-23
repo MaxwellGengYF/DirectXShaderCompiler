@@ -274,6 +274,7 @@ void initializeDxilPreserveToSelectPass(PassRegistry&);
 void initializeDxilRemoveDeadBlocksPass(PassRegistry&);
 void initializeDxilRemoveUnstructuredLoopExitsPass(PassRegistry &);
 void initializeDxilRewriteOutputArgDebugInfoPass(PassRegistry&);
+void initializeDxilAggressiveOptimizePass(PassRegistry&);
 // HLSL Change Ends
 void initializeScalarEvolutionAliasAnalysisPass(PassRegistry&);
 void initializeScalarEvolutionPass(PassRegistry&);

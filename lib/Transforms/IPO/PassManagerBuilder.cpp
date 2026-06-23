@@ -27,6 +27,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Vectorize.h"
 #include "dxc/HLSL/DxilGenerationPass.h" // HLSL Change
+#include "dxc/HLSL/DxilAggressiveOptimize.h" // HLSL Change
 #include "dxc/HLSL/HLMatrixLowerPass.h" // HLSL Change
 #include "dxc/HLSL/ComputeViewIdState.h" // HLSL Change
 #include "llvm/Analysis/DxilValueCache.h" // HLSL Change
@@ -685,6 +686,23 @@ void PassManagerBuilder::populateModulePassManager(
 
   if (MergeFunctions)
     MPM.add(createMergeFunctionsPass());
+
+  // HLSL Change - Aggressive fixed-point optimization for O2/O3.
+  if (EnableDxilAggressiveOptimize) {
+    hlsl::DxilAggressiveOptimizeOpts Opts;
+    Opts.MaxIterations = DxilOptMaxIterations;
+    Opts.PrintEach = DxilOptPrintEach;
+    Opts.ValidateEach = DxilOptValidateEach;
+    if (!DxilOptConfig.empty()) {
+      // Join the config strings with commas
+      for (size_t i = 0; i < DxilOptConfig.size(); ++i) {
+        if (i > 0)
+          Opts.CustomPasses += ",";
+        Opts.CustomPasses += DxilOptConfig[i];
+      }
+    }
+    MPM.add(createDxilAggressiveOptimizePass(Opts));
+  }
 
   // HLSL Change Begins.
   if (!HLSLHighLevel) {
