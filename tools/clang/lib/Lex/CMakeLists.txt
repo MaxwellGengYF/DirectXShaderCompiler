@@ -49,6 +49,8 @@ if (ENABLE_SPIRV_CODEGEN)
   list(APPEND hlsl_embedded_inputs
        vk/khr/cooperative_matrix.h
        vk/khr/cooperative_matrix.impl
+       vk/nv/cooperative_vector.h
+       vk/nv/cooperative_vector.impl
        vk/opcode_selector.h
        vk/spirv.h
        )
