@@ -5,7 +5,7 @@ description: Build the DirectX Shader Compiler (DXC) using build.py. Use when as
 
 # DXC Build Skill
 
-Use `build.py` at the repo root to configure and build DXC with CMake.
+Use `build.py` at the repo root to configure and build DXC with CMake. **Only the Ninja generator is supported.** If `ninja` is not on `PATH`, the script exits with an error.
 
 ## Quick Commands
 
@@ -36,7 +36,7 @@ python build.py --targets dxc,dxcompiler
 | Arg | Default | Description |
 |-----|---------|-------------|
 | `--build-dir` | `build` | Build directory relative to repo root. |
-| `--generator` | `Visual Studio 17 2022` (Win) / `Ninja` (other) | CMake generator. |
+| `--generator` | `Ninja` | CMake generator. Only `Ninja` is accepted; other generators are rejected. |
 | `--vs-version` | `latest` | Visual Studio version to use on Windows (`2019`, `2022`, `latest`). |
 | `--jobs` / `-j` | (unlimited) | Number of parallel build jobs. |
 
@@ -44,7 +44,7 @@ python build.py --targets dxc,dxcompiler
 
 | Arg | Default | Description |
 |-----|---------|-------------|
-| `--targets` | `dxc,dxcompiler,dxv,dxilconv` | Comma-separated CMake targets. |
+| `--targets` | `dxc,dxcompiler,dxv,dxildll` | Comma-separated CMake targets. |
 | `--clean` | `false` | Remove build dir before configuring. |
 
 ### Feature Flags
@@ -55,7 +55,6 @@ python build.py --targets dxc,dxcompiler
 | `--spirv-build-tests` | `false` | Build SPIR-V tests (requires extra deps). |
 | `--coverage` | `false` | Code coverage instrumentation. |
 | `--werror` | `false` | Treat warnings as errors. |
-| `--clang` | `auto` | Use Clang. `auto` uses it if found, `on` requires it, `off` disables it. On Windows this selects `clang-cl.exe` and switches the generator to Ninja. |
 
 ### Linker & Sanitizer (Ninja / non-Windows)
 
@@ -75,7 +74,7 @@ python build.py --targets dxc,dxcompiler
 
 ## Build Output
 
-Binaries land in `<build-dir>/<build-type>/bin/`:
+Binaries land in `<build-dir>/bin/` (Ninja is a single-config generator):
 
 | Target | Output |
 |--------|--------|
@@ -83,6 +82,7 @@ Binaries land in `<build-dir>/<build-type>/bin/`:
 | `dxv` | `dxv.exe` |
 | `dxcompiler` | `dxcompiler.dll` |
 | `dxilconv` | `dxilconv.dll` |
+| `dxildll` | `dxil.dll` |
 
 After building, the script verifies that each requested target's binary exists and reports size or missing status.
 
@@ -108,9 +108,6 @@ python build.py --targets dxcompiler
 python build.py --sanitizer "Address;Undefined"
 ```
 
-**Build with clang-cl on Windows (Debug)**:
-```bash
-python build.py --build-type Debug --clang=on
-```
+### Generator Requirement
 
-The `--clang=on` form fails if Clang/`clang-cl.exe` is not on `PATH`. Use `--clang=auto` to use it only when available.
+`build.py` requires the Ninja generator on every platform. If `ninja` is not found on `PATH`, the script prints an error and exits immediately. On Windows, the script loads the MSVC environment from `vcvars64.bat` (or falls back to adding the Windows SDK tools to `PATH`) so that Ninja can use the MSVC toolchain.

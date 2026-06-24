@@ -31,6 +31,10 @@ target_link_libraries(ClangSPIRVTests
   SPIRV-Tools
   )
 
+if(WIN32)
+  target_link_libraries(ClangSPIRVTests dbghelp)
+endif()
+
 # This is necessary so that the linked dxcompiler is loaded into memory space
 # first, and in case dxcompiler.so is loaded via 'dlopen', it resolves to the
 # same memory space, and prevents getting two copies of global static variables.

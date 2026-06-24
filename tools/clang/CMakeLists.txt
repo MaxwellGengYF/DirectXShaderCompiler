@@ -491,8 +491,8 @@ option(CLANG_INCLUDE_TESTS
        "Generate build targets for the Clang unit tests."
        ${LLVM_INCLUDE_TESTS})
 
-if( CLANG_INCLUDE_TESTS OR HLSL_INCLUDE_TESTS ) # HLSL Change
-  if(HLSL_INCLUDE_TESTS OR EXISTS ${LLVM_MAIN_SRC_DIR}/utils/unittest/googletest/include/gtest/gtest.h) # HLSL Change - no need for gtest
+if( CLANG_INCLUDE_TESTS OR HLSL_INCLUDE_TESTS OR SPIRV_BUILD_TESTS ) # HLSL Change + SPIRV
+  if(HLSL_INCLUDE_TESTS OR SPIRV_BUILD_TESTS OR EXISTS ${LLVM_MAIN_SRC_DIR}/utils/unittest/googletest/include/gtest/gtest.h) # HLSL Change - no need for gtest
     add_subdirectory(unittests)
     list(APPEND CLANG_TEST_DEPS ClangUnitTests)
     list(APPEND CLANG_TEST_PARAMS

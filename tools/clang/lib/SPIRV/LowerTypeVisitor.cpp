@@ -341,6 +341,14 @@ const SpirvType *LowerTypeVisitor::lowerType(const SpirvType *type,
   else if (const auto *vecType = dyn_cast<VectorType>(type)) {
     const auto *loweredElemType =
         lowerType(vecType->getElementType(), rule, loc);
+    const uint32_t elemCount = vecType->getElementCount();
+    // SPIR-V vectors are limited to 2-4 components. For vectors with more
+    // than 4 components (allowed in HLSL SM 6.9+ / cooperative vectors),
+    // lower them as arrays of the element type instead.
+    if (elemCount > 4) {
+      return spvContext.getArrayType(loweredElemType, elemCount,
+                                     /*arrayStride*/ llvm::None);
+    }
     // If vector didn't contain any hybrid types, return itself.
     if (vecType->getElementType() == loweredElemType)
       return vecType;
@@ -524,9 +532,22 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
   { // Vector types
     QualType elemType = {};
     uint32_t elemCount = {};
-    if (isVectorType(type, &elemType, &elemCount))
+    if (isVectorType(type, &elemType, &elemCount)) {
+      // SPIR-V vectors are limited to 2-4 components. For vectors with more
+      // than 4 components (allowed in HLSL SM 6.9+ / cooperative vectors),
+      // lower them as arrays of the element type instead.
+      if (elemCount > 4) {
+        uint32_t stride = 0;
+        if (rule != SpirvLayoutRule::Void)
+          alignmentCalc.getAlignmentAndSize(type, rule, isRowMajor, &stride);
+        return spvContext.getArrayType(
+            lowerType(elemType, rule, isRowMajor, srcLoc), elemCount,
+            rule != SpirvLayoutRule::Void ? llvm::Optional<uint32_t>(stride)
+                                          : llvm::None);
+      }
       return spvContext.getVectorType(
           lowerType(elemType, rule, isRowMajor, srcLoc), elemCount);
+    }
   }
 
   { // Matrix types

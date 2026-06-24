@@ -4241,14 +4241,14 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
 
   // Check if this is a float atomic operation. Look through implicit casts
   // to determine the true argument type (the frontend may have inserted an
-  // int→float cast if it resolved to the float overload).
+  // int-to-float cast if it resolved to the float overload).
   const Expr *valueArg = expr->getArg(1);
   const bool isFloat = valueArg->getType()->isFloatingType();
-  // If the value argument has an implicit int→float cast, treat it as integer.
+  // If the value argument has an implicit int-to-float cast, treat it as integer.
   const bool isFloatMinMax =
       isFloat && (opcode == hlsl::IntrinsicOp::MOP_InterlockedMin ||
                   opcode == hlsl::IntrinsicOp::MOP_InterlockedMax) &&
-      // Only error if the argument was truly float (no int→float cast).
+      // Only error if the argument was truly float (no int-to-float cast).
       !(isa<ImplicitCastExpr>(valueArg) &&
         cast<ImplicitCastExpr>(valueArg)->getSubExpr()
                 ->getType()
@@ -16331,6 +16331,24 @@ SpirvEmitter::processSpvIntrinsicCallExpr(const CallExpr *expr) {
                   arg->getExprLoc());
         return nullptr;
       }
+      // Handle alias variables: if the argument is a function parameter
+      // that represents a RWByteAddressBuffer/RWStructuredBuffer alias,
+      // we need to dereference it to get the actual StorageBuffer pointer.
+      if (isAKindOfStructuredOrByteBuffer(arg->getType())) {
+        loadIfAliasVarRef(arg, &argInst, arg->getSourceRange());
+        // For ByteAddressBuffer types, we need to access chain to the
+        // runtime array member (index 0) because the buffer is represented
+        // as a struct containing a runtime array, and cooperative vector
+        // intrinsics expect a pointer to the array directly.
+        if (isByteAddressBuffer(arg->getType()) ||
+            isRWByteAddressBuffer(arg->getType())) {
+          auto *constUint0 = spvBuilder.getConstantInt(
+              astContext.UnsignedIntTy, llvm::APInt(32, 0));
+          argInst = spvBuilder.createAccessChain(
+              arg->getType(), argInst, {constUint0},
+              arg->getExprLoc(), arg->getSourceRange());
+        }
+      }
       spvArgs.push_back(argInst);
     } else if (param->hasAttr<VKLiteralExtAttr>()) {
       auto constArg = dyn_cast<SpirvConstant>(argInst);
@@ -16829,7 +16847,7 @@ bool SpirvEmitter::spirvToolsOptimize(std::vector<uint32_t> *mod,
   std::vector<uint32_t> optimized;
   for (unsigned iter = 0; iter < kSpirvOptMaxIterations; ++iter) {
     if (!optimizer.Run(mod->data(), mod->size(), &optimized, options)) {
-      // Optimization failure — stop iterating and report the error.
+      // Optimization failure -- stop iterating and report the error.
       return false;
     }
     // Check for convergence: if the size hasn't changed, we're done.

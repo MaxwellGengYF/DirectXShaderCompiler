@@ -131,7 +131,7 @@ void DxilAggressiveOptimize::validateModule(Module &M, unsigned Iter,
   std::string errInfo;
   raw_string_ostream errStream(errInfo);
 
-  // Try the verifier but don't crash if it fails — DXIL IR may contain
+  // Try the verifier but don't crash if it fails -- DXIL IR may contain
   // constructs (intrinsics, metadata, calling conventions) that the
   // standard LLVM verifier doesn't recognize.
   if (llvm::verifyModule(M, &errStream)) {
