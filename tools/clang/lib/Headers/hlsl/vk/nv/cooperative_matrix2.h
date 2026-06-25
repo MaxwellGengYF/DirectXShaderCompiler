@@ -41,10 +41,12 @@ cooperativeMatrixTranspose(
 // is the SPIR-V opcode for the combine operation (e.g., 128 for OpIAdd).
 // The SPIR-V opcode is OpCooperativeMatrixReduceNV (5366), which requires
 // CooperativeMatrixReductionsNV (5430) capability.
-// The result is a CooperativeVector with 'columns' components.
+// NOTE: Returns CooperativeMatrix (not CooperativeVector) because SPIR-V
+// OpCooperativeMatrixReduceNV requires the result type to be a cooperative
+// matrix type.
 template <typename ComponentType, Scope scope, uint rows, uint columns,
           CooperativeMatrixUse use>
-CooperativeVector<ComponentType, columns>
+khr::CooperativeMatrix<ComponentType, scope, rows, columns, use>
 cooperativeMatrixReduceRow(
     khr::CooperativeMatrix<ComponentType, scope, rows, columns, use> matrix,
     uint combineOp);
@@ -53,10 +55,12 @@ cooperativeMatrixReduceRow(
 // is the SPIR-V opcode for the combine operation (e.g., 128 for OpIAdd).
 // The SPIR-V opcode is OpCooperativeMatrixReduceNV (5366), which requires
 // CooperativeMatrixReductionsNV (5430) capability.
-// The result is a CooperativeVector with 'rows' components.
+// NOTE: Returns CooperativeMatrix (not CooperativeVector) because SPIR-V
+// OpCooperativeMatrixReduceNV requires the result type to be a cooperative
+// matrix type.
 template <typename ComponentType, Scope scope, uint rows, uint columns,
           CooperativeMatrixUse use>
-CooperativeVector<ComponentType, rows>
+khr::CooperativeMatrix<ComponentType, scope, rows, columns, use>
 cooperativeMatrixReduceColumn(
     khr::CooperativeMatrix<ComponentType, scope, rows, columns, use> matrix,
     uint combineOp);

@@ -19,14 +19,14 @@ int stride;
 
   // Row reduction: reduce each row using FAdd (129)
   // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} %uint_1 %uint_129
-  vk::nv::CooperativeVector<float, 8> row_result =
+  auto row_result =
       vk::nv::cooperativeMatrixReduceRow<
           float, vk::ScopeSubgroup, 16, 8,
           vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 129);
 
   // Column reduction: reduce each column using FAdd (129)
   // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_1 {{%[^ ]+}} %uint_2 %uint_129
-  vk::nv::CooperativeVector<float, 16> col_result =
+  auto col_result =
       vk::nv::cooperativeMatrixReduceColumn<
           float, vk::ScopeSubgroup, 16, 8,
           vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 129);

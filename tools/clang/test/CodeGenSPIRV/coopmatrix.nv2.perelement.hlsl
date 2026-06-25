@@ -19,7 +19,7 @@ int stride;
 
   // Apply a per-element operation using a function ID
   // CHECK: OpCooperativeMatrixPerElementOpNV
-  FloatMatAcc result = vk::nv::cooperativeMatrixPerElementOp<
+  auto result = vk::nv::cooperativeMatrixPerElementOp<
       float, vk::ScopeSubgroup, 16, 8,
       vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 42);
 }

@@ -828,6 +828,16 @@ private:
   /// call to __builtin_spv_CooperativeMatrixLengthKHR.
   SpirvInstruction *processCooperativeMatrixGetLength(const CallExpr *call);
 
+  /// Process QCOM cooperative matrix conversion builtins.
+  SpirvInstruction *processCooperativeMatrixBitCastQCOM(const CallExpr *call);
+  SpirvInstruction *processCooperativeMatrixExtractQCOM(const CallExpr *call);
+  SpirvInstruction *processCooperativeMatrixSubArrayQCOM(const CallExpr *call);
+
+  /// Process NV cooperative matrix reduce builtin.
+  SpirvInstruction *processCooperativeMatrixReduceNV(const CallExpr *call);
+  /// Process NV cooperative matrix per-element-op builtin.
+  SpirvInstruction *processCooperativeMatrixPerElementOpNV(const CallExpr *call);
+
   /// Process vk::ext_execution_mode intrinsic
   SpirvInstruction *processIntrinsicExecutionMode(const CallExpr *expr);
   /// Process vk::ext_execution_mode_id intrinsic

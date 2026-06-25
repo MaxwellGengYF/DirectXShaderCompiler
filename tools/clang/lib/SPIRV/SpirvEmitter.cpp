@@ -548,6 +548,21 @@ bool isCooperativeMatrixGetLengthIntrinsic(
   return functionDeclaration->getName().equals(
       "__builtin_spv_CooperativeMatrixLengthKHR");
 }
+bool isCooperativeMatrixBitCastQCOMIntrinsic(const FunctionDecl *f) {
+  return f->getName().equals("__builtin_spv_BitCastArrayQCOM");
+}
+bool isCooperativeMatrixExtractQCOMIntrinsic(const FunctionDecl *f) {
+  return f->getName().equals("__builtin_spv_CompositeExtractCoopMatQCOM");
+}
+bool isCooperativeMatrixSubArrayQCOMIntrinsic(const FunctionDecl *f) {
+  return f->getName().equals("__builtin_spv_ExtractSubArrayQCOM");
+}
+bool isCooperativeMatrixReduceNVIntrinsic(const FunctionDecl *f) {
+  return f->getName().equals("__builtin_spv_CooperativeMatrixReduceNV");
+}
+bool isCooperativeMatrixPerElementOpNVIntrinsic(const FunctionDecl *f) {
+  return f->getName().equals("__builtin_spv_CooperativeMatrixPerElementOpNV");
+}
 
 // Takes an AST member type, and determines its index in the equivalent SPIR-V
 // struct type. This is required as the struct layout might change between the
@@ -3180,6 +3195,17 @@ SpirvInstruction *SpirvEmitter::doCallExpr(const CallExpr *callExpr,
 
   auto funcDecl = callExpr->getDirectCallee();
   if (funcDecl) {
+    if (isCooperativeMatrixBitCastQCOMIntrinsic(funcDecl))
+      return processCooperativeMatrixBitCastQCOM(callExpr);
+    if (isCooperativeMatrixExtractQCOMIntrinsic(funcDecl))
+      return processCooperativeMatrixExtractQCOM(callExpr);
+    if (isCooperativeMatrixSubArrayQCOMIntrinsic(funcDecl))
+      return processCooperativeMatrixSubArrayQCOM(callExpr);
+    if (isCooperativeMatrixReduceNVIntrinsic(funcDecl))
+      return processCooperativeMatrixReduceNV(callExpr);
+    if (isCooperativeMatrixPerElementOpNVIntrinsic(funcDecl))
+      return processCooperativeMatrixPerElementOpNV(callExpr);
+
     if (funcDecl->hasAttr<VKInstructionExtAttr>())
       return processSpvIntrinsicCallExpr(callExpr);
     else if (funcDecl->hasAttr<VKTypeDefExtAttr>())
@@ -16555,6 +16581,89 @@ SpirvEmitter::processCooperativeMatrixGetLength(const CallExpr *call) {
       call->getLocStart(), call->getSourceRange());
   inst->setRValue();
   return inst;
+}
+
+SpirvInstruction *
+SpirvEmitter::processCooperativeMatrixBitCastQCOM(const CallExpr *call) {
+  const auto args = call->getArgs();
+  assert(call->getNumArgs() == 2);
+  SpirvInstruction *srcArg = doExpr(args[0]->IgnoreParenLValueCasts());
+  srcArg = loadIfGLValue(args[0], srcArg);
+  SpirvInstruction *dstArg = doExpr(args[1]->IgnoreParenLValueCasts());
+  QualType resultType = args[1]->getType();
+  SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
+      4497, resultType, {srcArg},
+      {"SPV_QCOM_cooperative_matrix_conversion"}, "",
+      {4496}, call->getExprLoc());
+  if (!intrInst) return nullptr;
+  return spvBuilder.createStore(dstArg, intrInst, call->getExprLoc(), call->getSourceRange());
+}
+
+SpirvInstruction *
+SpirvEmitter::processCooperativeMatrixExtractQCOM(const CallExpr *call) {
+  const auto args = call->getArgs();
+  assert(call->getNumArgs() == 2);
+  SpirvInstruction *matrixArg = doExpr(args[0]);
+  SpirvInstruction *dstArg = doExpr(args[1]->IgnoreParenLValueCasts());
+  QualType resultType = args[1]->getType();
+  SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
+      4541, resultType, {matrixArg},
+      {"SPV_QCOM_cooperative_matrix_conversion"}, "",
+      {4496}, call->getExprLoc());
+  if (!intrInst) return nullptr;
+  return spvBuilder.createStore(dstArg, intrInst, call->getExprLoc(), call->getSourceRange());
+}
+
+SpirvInstruction *
+SpirvEmitter::processCooperativeMatrixSubArrayQCOM(const CallExpr *call) {
+  const auto args = call->getArgs();
+  assert(call->getNumArgs() == 3);
+  SpirvInstruction *srcArg = doExpr(args[0]->IgnoreParenLValueCasts());
+  srcArg = loadIfGLValue(args[0], srcArg);
+  SpirvInstruction *indexArg = doExpr(args[1]);
+  SpirvInstruction *dstArg = doExpr(args[2]->IgnoreParenLValueCasts());
+  QualType resultType = args[2]->getType();
+  SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
+      4542, resultType, {srcArg, indexArg},
+      {"SPV_QCOM_cooperative_matrix_conversion"}, "",
+      {4496}, call->getExprLoc());
+  if (!intrInst) return nullptr;
+  return spvBuilder.createStore(dstArg, intrInst, call->getExprLoc(), call->getSourceRange());
+}
+
+SpirvInstruction *
+SpirvEmitter::processCooperativeMatrixReduceNV(const CallExpr *call) {
+  const auto args = call->getArgs();
+  assert(call->getNumArgs() == 3);
+  SpirvInstruction *matrixArg = doExpr(args[0]);
+  SpirvInstruction *reduceModeArg = doExpr(args[1]);
+  SpirvInstruction *combineOpArg = doExpr(args[2]);
+  if (auto *constArg = dyn_cast<SpirvConstant>(reduceModeArg))
+    constArg->setLiteral();
+  QualType resultType = call->getType();
+  SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
+      5366, resultType, {matrixArg, reduceModeArg, combineOpArg},
+      {"SPV_NV_cooperative_matrix2"}, "",
+      {5430}, call->getExprLoc());
+  if (!intrInst) return nullptr;
+  intrInst->setRValue();
+  return intrInst;
+}
+
+SpirvInstruction *
+SpirvEmitter::processCooperativeMatrixPerElementOpNV(const CallExpr *call) {
+  const auto args = call->getArgs();
+  assert(call->getNumArgs() == 2);
+  SpirvInstruction *matrixArg = doExpr(args[0]);
+  SpirvInstruction *funcIdArg = doExpr(args[1]);
+  QualType resultType = call->getType();
+  SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
+      5369, resultType, {matrixArg, funcIdArg},
+      {"SPV_NV_cooperative_matrix2"}, "",
+      {5432}, call->getExprLoc());
+  if (!intrInst) return nullptr;
+  intrInst->setRValue();
+  return intrInst;
 }
 
 SpirvInstruction *

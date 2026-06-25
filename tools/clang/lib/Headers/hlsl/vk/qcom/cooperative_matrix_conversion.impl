@@ -26,12 +26,12 @@ void __builtin_spv_BitCastArrayQCOM(
 // Custom handler in SpirvEmitter: processCooperativeMatrixConstructQCOM
 // Loads array value from pointer for OpTypeArray requirement.
 
-template <typename CoopMatSpirvType, typename ArrayPointerType>
+template <typename CoopMatSpirvType, typename ArrayType>
 [[vk::ext_instruction(/* OpCompositeConstructCoopMatQCOM */ 4540)]]
 [[vk::ext_capability(/* CooperativeMatrixConversionQCOM */ 4496)]]
 [[vk::ext_extension("SPV_QCOM_cooperative_matrix_conversion")]]
 CoopMatSpirvType __builtin_spv_CompositeConstructCoopMatQCOM(
-    [[vk::ext_reference]] ArrayPointerType array);
+    ArrayType array);
 
 // --- OpCompositeExtractCoopMatQCOM (4541) ---
 // Custom handler in SpirvEmitter: processCooperativeMatrixExtractQCOM
