@@ -31,7 +31,7 @@ void main()
   InterlockedAdd(buff_f[0], val_f);
 
   // Test InterlockedAdd on RWStructuredBuffer<float>
-// CHECK:      [[ac:%[0-9]+]] = OpAccessChain %_ptr_Uniform_float %sbuff_f %uint_0 %uint_0
+// CHECK:      [[ac:%[0-9]+]] = OpAccessChain %_ptr_Uniform_float %sbuff_f %int_0 %uint_0
 // CHECK-NEXT: [[val4:%[0-9]+]] = OpLoad %float %val_f
 // CHECK-NEXT:  {{%[0-9]+}} = OpAtomicFAddEXT %float [[ac]] %uint_1 %uint_0 [[val4]]
   InterlockedAdd(sbuff_f[0], val_f);

@@ -115,7 +115,7 @@ static StackTracerInit stack_tracer_init;
 #endif // _WIN32 && !NDEBUG
 
 // Unconditionally disable Windows error dialogs and redirect to stderr.
-// Not gated on _MSC_VER — works with clang-cl too.
+// Not gated on _MSC_VER -- works with clang-cl too.
 #if defined(_WIN32)
 struct DisableMessageBoxInit {
   DisableMessageBoxInit() noexcept {

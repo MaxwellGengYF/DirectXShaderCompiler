@@ -1,4 +1,4 @@
-// RUN: %dxc -T cs_6_6 -E main -fcgl %s -spirv | FileCheck %s
+// RUN: not %dxc -T cs_6_6 -E main -fcgl %s -spirv 2>&1 | FileCheck %s
 
 groupshared float dest_f;
 RWBuffer<float> buff_f;

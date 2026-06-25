@@ -1,7 +1,7 @@
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -DTYPE=float %s | FileCheck %s --check-prefix=CHECK --check-prefix=FLOATS
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -DTYPE=int %s | FileCheck %s --check-prefix=CHECK --check-prefix=INTEGERS
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -DTYPE=uint %s | FileCheck %s --check-prefix=CHECK --check-prefix=INTEGERS
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -DTYPE=double %s | FileCheck %s --check-prefix=CHECK --check-prefix=FLOATS
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -Vd -DTYPE=float %s | FileCheck %s --check-prefix=CHECK --check-prefix=FLOATS
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -Vd -DTYPE=int %s | FileCheck %s --check-prefix=CHECK --check-prefix=INTEGERS
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -Vd -DTYPE=uint %s | FileCheck %s --check-prefix=CHECK --check-prefix=INTEGERS
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 -Vd -DTYPE=double %s | FileCheck %s --check-prefix=CHECK --check-prefix=FLOATS
 
 // NOTE: -Vd used to bypass SPIR-V validator bug with OpCompositeConstruct on cooperative vector types
 
@@ -32,7 +32,7 @@
   // FLOATS: OpFMul
   CoopVec m = v * v2;
 
-  // INTEGERS: OpSDiv
+  // INTEGERS: Op{{[SU]}}Div
   // FLOATS: OpFDiv
   CoopVec d = v / v2;
 

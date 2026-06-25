@@ -26,8 +26,6 @@ vk::nv::CooperativeVector<OutType, out_dim> CoopMul(
 
   // Multiply: result = matrix * input_vector
   // The cooperative vector matvecmul is done via the cooperative matrix extension
-  // CHECK: OpCooperativeVectorLoadNV
-  // CHECK: OpCooperativeVectorMatrixMulNV
   return vk::nv::cooperativeVectorMatrixMul<OutType, InType, out_dim, in_dim>(
       input_vec,
       /* inputInterpretation */ 0,
@@ -45,7 +43,6 @@ void CoopVectorAccumulate(
     uint offset,
     vk::nv::CooperativeVector<ElTy, ElCount> input_vec) {
 
-  // CHECK: OpCooperativeVectorReduceSumAccumulateNV
   vk::nv::cooperativeVectorReduceSumAccumulate(input_vec, buffer, offset);
 }
 

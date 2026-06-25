@@ -301,8 +301,8 @@ ComponentType CooperativeMatrix<ComponentType, scope, rows, columns, use>::Get(
       /* function storage class */ vk::Literal<vk::integral_constant<uint, 7> >,
       ComponentType>;
   // clang-format on
-  ComponentPtr ptr = __builtin_spv_AccessChain<ComponentPtr>(_matrix, index);
-  return __builtin_spv_LoadPointer<ComponentType>(ptr);
+  return __builtin_spv_LoadPointer<ComponentType>(
+      __builtin_spv_AccessChain<ComponentPtr>(_matrix, index));
 }
 
 template <class ComponentType, Scope scope, uint rows, uint columns,
@@ -315,8 +315,8 @@ void CooperativeMatrix<ComponentType, scope, rows, columns, use>::Set(
       /* function storage class */ vk::Literal<vk::integral_constant<uint, 7> >,
       ComponentType>;
   // clang-format on
-  ComponentPtr ptr = __builtin_spv_AccessChain<ComponentPtr>(_matrix, index);
-  return __builtin_spv_StorePointer(ptr, value);
+  return __builtin_spv_StorePointer(
+      __builtin_spv_AccessChain<ComponentPtr>(_matrix, index), value);
 }
 
 template <typename ComponentType, Scope scope, uint rows, uint columns, uint K>

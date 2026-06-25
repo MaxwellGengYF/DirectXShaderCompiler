@@ -536,7 +536,7 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
       // SPIR-V vectors are limited to 2-4 components. For vectors with more
       // than 4 components (allowed in HLSL SM 6.9+ / cooperative vectors),
       // lower them as arrays of the element type instead.
-      if (elemCount > 4 && spvContext.hasCooperativeVectorOrMatrixType()) {
+      if (elemCount > 4) {
         uint32_t stride = 0;
         if (rule != SpirvLayoutRule::Void)
           alignmentCalc.getAlignmentAndSize(type, rule, isRowMajor, &stride);

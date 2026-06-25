@@ -53,42 +53,42 @@ float4 main() : SV_Target
 // CHECK:      [[offset_7:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_7:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_7]]
 // CHECK-NEXT:        {{%[0-9]+}} = OpAtomicUMax %uint [[ptr_7]] %uint_1 %uint_0 %uint_42
-    myBuffer.InterlockedMax(16, 42);
+    myBuffer.InterlockedMax(16, 42u);
 // CHECK:      [[offset_8:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_8:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_8]]
 // CHECK-NEXT:    [[val_3:%[0-9]+]] = OpAtomicUMax %uint [[ptr_8]] %uint_1 %uint_0 %uint_42
 // CHECK-NEXT:                   OpStore %originalVal [[val_3]]
-    myBuffer.InterlockedMax(16, 42, originalVal);
+    myBuffer.InterlockedMax(16, 42u, originalVal);
 
 // CHECK:      [[offset_9:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_9:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_9]]
 // CHECK-NEXT:        {{%[0-9]+}} = OpAtomicUMax %uint [[ptr_9]] %uint_1 %uint_0 %uint_42
-    myBuffer.InterlockedMax(16, 42);
+    myBuffer.InterlockedMax(16, 42u);
 // CHECK:      [[offset_10:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_10:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_10]]
 // CHECK-NEXT:    [[val_4:%[0-9]+]] = OpAtomicUMax %uint [[ptr_10]] %uint_1 %uint_0 %uint_42
 // CHECK-NEXT:                   OpStore %originalVal [[val_4]]
-    myBuffer.InterlockedMax(16, 42, originalVal);
+    myBuffer.InterlockedMax(16, 42u, originalVal);
 
 // CHECK:      [[offset_11:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_11:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_11]]
 // CHECK-NEXT:        {{%[0-9]+}} = OpAtomicUMin %uint [[ptr_11]] %uint_1 %uint_0 %uint_42
-    myBuffer.InterlockedMin(16, 42);
+    myBuffer.InterlockedMin(16, 42u);
 // CHECK:      [[offset_12:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_12:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_12]]
 // CHECK-NEXT:    [[val_5:%[0-9]+]] = OpAtomicUMin %uint [[ptr_12]] %uint_1 %uint_0 %uint_42
 // CHECK-NEXT:                   OpStore %originalVal [[val_5]]
-    myBuffer.InterlockedMin(16, 42, originalVal);
+    myBuffer.InterlockedMin(16, 42u, originalVal);
 
 // CHECK:      [[offset_13:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_13:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_13]]
 // CHECK-NEXT:        {{%[0-9]+}} = OpAtomicUMin %uint [[ptr_13]] %uint_1 %uint_0 %uint_42
-    myBuffer.InterlockedMin(16, 42);
+    myBuffer.InterlockedMin(16, 42u);
 // CHECK:      [[offset_14:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
 // CHECK-NEXT:    [[ptr_14:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_14]]
 // CHECK-NEXT:    [[val_6:%[0-9]+]] = OpAtomicUMin %uint [[ptr_14]] %uint_1 %uint_0 %uint_42
 // CHECK-NEXT:                   OpStore %originalVal [[val_6]]
-    myBuffer.InterlockedMin(16, 42, originalVal);
+    myBuffer.InterlockedMin(16, 42u, originalVal);
 
     // .InterlockedExchnage() has no two-parameter overload.
 // CHECK:      [[offset_15:%[0-9]+]] = OpShiftRightLogical %uint %uint_16 %uint_2
@@ -118,20 +118,23 @@ float4 main() : SV_Target
 
 // CHECK:      [[offset_19:%[0-9]+]] = OpShiftRightLogical %uint %uint_0 %uint_2
 // CHECK-NEXT:    [[ptr_19:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_19]]
-// CHECK-NEXT:    [[val_19:%[0-9]+]] = OpBitcast %uint %int_n1
+// CHECK-NEXT:    [[neg1:%[0-9]+]] = OpSNegate %int %int_1
+// CHECK-NEXT:    [[val_19:%[0-9]+]] = OpBitcast %uint [[neg1]]
 // CHECK-NEXT:           {{%[0-9]+}} = OpAtomicSMin %uint [[ptr_19]] %uint_1 %uint_0 [[val_19]]
     myBuffer.InterlockedMin(0u, -1);
 
 // CHECK:      [[offset_20:%[0-9]+]] = OpShiftRightLogical %uint %uint_0 %uint_2
 // CHECK-NEXT:    [[ptr_20:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_20]]
-// CHECK-NEXT:    [[val_20:%[0-9]+]] = OpBitcast %uint %int_n1
+// CHECK-NEXT:    [[neg1_0:%[0-9]+]] = OpSNegate %int %int_1
+// CHECK-NEXT:    [[val_20:%[0-9]+]] = OpBitcast %uint [[neg1_0]]
 // CHECK-NEXT:    [[res_20:%[0-9]+]] = OpAtomicSMax %uint [[ptr_20]] %uint_1 %uint_0 [[val_20]]
 // CHECK-NEXT:                         OpStore %originalVal [[res_20]]
     myBuffer.InterlockedMax(0u, -1, originalVal);
 
 // CHECK:      [[offset_21:%[0-9]+]] = OpShiftRightLogical %uint %uint_0 %uint_2
 // CHECK-NEXT:    [[ptr_21:%[0-9]+]] = OpAccessChain %_ptr_Uniform_uint %myBuffer %uint_0 [[offset_21]]
-// CHECK-NEXT:    [[val_21:%[0-9]+]] = OpBitcast %uint %int_n1
+// CHECK-NEXT:    [[neg1_1:%[0-9]+]] = OpSNegate %int %int_1
+// CHECK-NEXT:    [[val_21:%[0-9]+]] = OpBitcast %uint [[neg1_1]]
 // CHECK-NEXT:    [[res_21:%[0-9]+]] = OpAtomicSMin %uint [[ptr_21]] %uint_1 %uint_0 [[val_21]]
 // CHECK-NEXT:   [[res_21b:%[0-9]+]] = OpBitcast %int [[res_21]]
 // CHECK-NEXT:                         OpStore %originalValAsInt [[res_21b]]

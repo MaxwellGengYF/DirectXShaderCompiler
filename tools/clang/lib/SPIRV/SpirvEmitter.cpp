@@ -4271,14 +4271,16 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
   const Expr *valueArg = expr->getArg(1);
   const bool isFloat = valueArg->getType()->isFloatingType();
   // If the value argument has an implicit int-to-float cast, treat it as integer.
-  const bool isFloatMinMax =
-      isFloat && (opcode == hlsl::IntrinsicOp::MOP_InterlockedMin ||
-                  opcode == hlsl::IntrinsicOp::MOP_InterlockedMax) &&
-      // Only error if the argument was truly float (no int-to-float cast).
-      !(isa<ImplicitCastExpr>(valueArg) &&
-        cast<ImplicitCastExpr>(valueArg)->getSubExpr()
-                ->getType()
-                ->isIntegerType());
+  const Expr *valueIntArg = nullptr;
+  bool isFloatMinMax = isFloat && (opcode == hlsl::IntrinsicOp::MOP_InterlockedMin || opcode == hlsl::IntrinsicOp::MOP_InterlockedMax);
+  if (isFloatMinMax) {
+    if (const auto *ice = dyn_cast<ImplicitCastExpr>(valueArg)) {
+      if (ice->getSubExpr()->getType()->isIntegerType()) {
+        valueIntArg = ice->getSubExpr();
+      }
+    }
+  }
+  isFloatMinMax &= (valueIntArg == nullptr);
 
   if (isFloatMinMax) {
     emitError("Float InterlockedMin/Max on RWByteAddressBuffer is not "
@@ -4354,8 +4356,13 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
                              expr->getArg(3)->getLocStart(), range);
     }
   } else {
-    const Expr *value = expr->getArg(1);
-    SpirvInstruction *valueInstr = doExpr(expr->getArg(1));
+    // If the frontend resolved the Min/Max call to the float overload but the
+    // argument is really an integer (via an implicit int-to-float cast), use
+    // the integer sub-expression directly. This avoids an unnecessary
+    // int->float->int conversion and lets us pick the correct signed/unsigned
+    // SPIR-V opcode for the actual argument type.
+    const Expr *value = valueIntArg ? valueIntArg : expr->getArg(1);
+    SpirvInstruction *valueInstr = doExpr(value);
 
     // Since a RWAB is represented by an array of 32-bit unsigned integers, the
     // destination pointee type will always be unsigned, and thus the SPIR-V
@@ -4368,9 +4375,29 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
         castToType(valueInstr, value->getType(), astContext.UnsignedIntTy,
                    value->getExprLoc(), range);
 
+    // For RWByteAddressBuffer Min/Max, choose the SPIR-V opcode based on the
+    // actual integer signedness. The frontend may have selected the signed
+    // MOP_InterlockedMax/Min overload even when the argument is unsigned.
+    spv::Op spvOpcode = translateAtomicHlslOpcodeToSpirvOpcode(opcode);
+    if (valueIntArg) {
+      // The frontend resolved the call to the float overload, but the argument
+      // is really an integer. Infer the intended signedness from the value:
+      // negative constants should use signed atomics; non-negative constants or
+      // non-constant values default to unsigned (matching the uint buffer type).
+      bool isSigned = false;
+      llvm::APSInt intValue;
+      if (valueIntArg->EvaluateAsInt(intValue, astContext)) {
+        isSigned = intValue.isSigned() && intValue.isNegative();
+      }
+      if (opcode == hlsl::IntrinsicOp::MOP_InterlockedMax) {
+        spvOpcode = isSigned ? spv::Op::OpAtomicSMax : spv::Op::OpAtomicUMax;
+      } else if (opcode == hlsl::IntrinsicOp::MOP_InterlockedMin) {
+        spvOpcode = isSigned ? spv::Op::OpAtomicSMin : spv::Op::OpAtomicUMin;
+      }
+    }
+
     SpirvInstruction *originalVal = spvBuilder.createAtomicOp(
-        translateAtomicHlslOpcodeToSpirvOpcode(opcode),
-        astContext.UnsignedIntTy, ptr, spv::Scope::Device,
+        spvOpcode, astContext.UnsignedIntTy, ptr, spv::Scope::Device,
         spv::MemorySemanticsMask::MaskNone, valueInstr,
         expr->getCallee()->getExprLoc(), range);
     if (expr->getNumArgs() > 2) {

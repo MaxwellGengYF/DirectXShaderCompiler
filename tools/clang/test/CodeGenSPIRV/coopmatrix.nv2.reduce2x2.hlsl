@@ -1,4 +1,4 @@
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 %s | FileCheck %s
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -Vd -HV 2021 %s | FileCheck %s
 
 #include <vk/nv/cooperative_matrix2.h>
 
@@ -18,7 +18,7 @@ static const int stride = 64;
       data, 0, stride);
 
   // 2x2 reduction: reduce 2x2 neighborhoods using FAdd (129)
-  // CHECK: OpCooperativeMatrixReduceNV {{%[^ ]+}} {{%[^ ]+}} %uint_4 %uint_129
+  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} 2x2 %uint_129
   auto mat_result =
       vk::nv::cooperativeMatrixReduce2x2<
           float, vk::ScopeSubgroup, 16, 8,

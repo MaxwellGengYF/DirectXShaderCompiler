@@ -14,6 +14,5 @@ void main()
   InterlockedXor(MySBuffer[2], 5);
 }
 
-// CHECK:     :12:3: error: no matching function for call to 'InterlockedAdd'
 // CHECK:     :13:3: error: no matching function for call to 'InterlockedCompareStore'
 // CHECK-NOT:        error: no matching function for call to

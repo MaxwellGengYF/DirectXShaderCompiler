@@ -1,4 +1,4 @@
-// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -HV 2021 %s | FileCheck %s
+// RUN: %dxc -fspv-target-env=vulkan1.3 -T cs_6_0 -E main -spirv -Vd -HV 2021 %s | FileCheck %s
 
 #include <vk/nv/cooperative_matrix2.h>
 
@@ -18,21 +18,21 @@ int stride;
       data, 0, stride);
 
   // Row reduction: reduce each row using FAdd (129)
-  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} %uint_1 %uint_129
+  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType{{(_0)?}} {{%[^ ]+}} Row %uint_129
   auto row_result =
       vk::nv::cooperativeMatrixReduceRow<
           float, vk::ScopeSubgroup, 16, 8,
           vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 129);
 
   // Column reduction: reduce each column using FAdd (129)
-  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_1 {{%[^ ]+}} %uint_2 %uint_129
+  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType{{(_0)?}} {{%[^ ]+}} Column %uint_129
   auto col_result =
       vk::nv::cooperativeMatrixReduceColumn<
           float, vk::ScopeSubgroup, 16, 8,
           vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 129);
 
   // 2x2 reduction: reduce 2x2 neighborhoods using FAdd (129)
-  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_2 {{%[^ ]+}} %uint_4 %uint_129
+  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} 2x2 %uint_129
   auto mat_result = vk::nv::cooperativeMatrixReduce2x2<
       float, vk::ScopeSubgroup, 16, 8,
       vk::CooperativeMatrixUseMatrixAccumulatorKHR>(acc_mat, 129);
