@@ -1464,6 +1464,96 @@ bool EmitVisitor::visit(SpirvStore *inst) {
   return true;
 }
 
+bool EmitVisitor::visit(SpirvCopyMemory *inst) {
+  initInstruction(inst);
+  // No result type, no result id
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getTarget()));
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getSource()));
+
+  if (inst->hasMemoryOperands()) {
+    spv::MemoryAccessMask mask = inst->getMemoryAccess(0);
+    curInst.push_back(static_cast<uint32_t>(mask));
+    if (inst->hasAlignment(0)) {
+      assert(static_cast<uint32_t>(mask) &
+             static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+      curInst.push_back(inst->getAlignment(0));
+    }
+  }
+  if (inst->hasTwoMemoryOperands()) {
+    spv::MemoryAccessMask mask = inst->getMemoryAccess(1);
+    curInst.push_back(static_cast<uint32_t>(mask));
+    if (inst->hasAlignment(1)) {
+      assert(static_cast<uint32_t>(mask) &
+             static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+      curInst.push_back(inst->getAlignment(1));
+    }
+  }
+  finalizeInstruction(&mainBinary);
+  return true;
+}
+
+bool EmitVisitor::visit(SpirvCopyMemorySized *inst) {
+  initInstruction(inst);
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getTarget()));
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getSource()));
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getSize()));
+
+  if (inst->hasMemoryOperands()) {
+    spv::MemoryAccessMask mask = inst->getMemoryAccess(0);
+    curInst.push_back(static_cast<uint32_t>(mask));
+    if (inst->hasAlignment(0)) {
+      assert(static_cast<uint32_t>(mask) &
+             static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+      curInst.push_back(inst->getAlignment(0));
+    }
+  }
+  if (inst->hasTwoMemoryOperands()) {
+    spv::MemoryAccessMask mask = inst->getMemoryAccess(1);
+    curInst.push_back(static_cast<uint32_t>(mask));
+    if (inst->hasAlignment(1)) {
+      assert(static_cast<uint32_t>(mask) &
+             static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+      curInst.push_back(inst->getAlignment(1));
+    }
+  }
+  finalizeInstruction(&mainBinary);
+  return true;
+}
+
+bool EmitVisitor::visit(SpirvUntypedGroupAsyncCopyKHR *inst) {
+  initInstruction(inst);
+  curInst.push_back(inst->getResultTypeId());
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getExecutionScope()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getDestination()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getSource()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getElementNumBytes()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getNumElements()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getStride()));
+  curInst.push_back(
+      getOrAssignResultId<SpirvInstruction>(inst->getEvent()));
+
+  if (inst->hasDestMemoryAccess()) {
+    curInst.push_back(
+        static_cast<uint32_t>(inst->getDestMemoryAccess()));
+  }
+  if (inst->hasSrcMemoryAccess()) {
+    curInst.push_back(
+        static_cast<uint32_t>(inst->getSrcMemoryAccess()));
+  }
+
+  finalizeInstruction(&mainBinary);
+  emitDebugNameForInstruction(getOrAssignResultId<SpirvInstruction>(inst),
+                              inst->getDebugName());
+  return true;
+}
+
 bool EmitVisitor::visit(SpirvNullaryOp *inst) {
   initInstruction(inst);
 

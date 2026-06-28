@@ -356,6 +356,46 @@ SpirvStore *SpirvBuilder::createStore(SpirvInstruction *address,
   return instruction;
 }
 
+void SpirvBuilder::createCopyMemory(
+    SpirvInstruction *target, SpirvInstruction *source,
+    llvm::Optional<spv::MemoryAccessMask> mask1,
+    llvm::Optional<spv::MemoryAccessMask> mask2,
+    SourceLocation loc, SourceRange range) {
+  assert(insertPoint && "null insert point");
+  auto *inst = new (context)
+      SpirvCopyMemory(loc, target, source, mask1, mask2, range);
+  insertPoint->addInstruction(inst);
+}
+
+void SpirvBuilder::createCopyMemorySized(
+    SpirvInstruction *target, SpirvInstruction *source,
+    SpirvInstruction *size,
+    llvm::Optional<spv::MemoryAccessMask> mask1,
+    llvm::Optional<spv::MemoryAccessMask> mask2,
+    SourceLocation loc, SourceRange range) {
+  assert(insertPoint && "null insert point");
+  auto *inst = new (context)
+      SpirvCopyMemorySized(loc, target, source, size, mask1, mask2, range);
+  insertPoint->addInstruction(inst);
+}
+
+SpirvUntypedGroupAsyncCopyKHR *SpirvBuilder::createUntypedGroupAsyncCopyKHR(
+    QualType resultType, SpirvInstruction *executionScope,
+    SpirvInstruction *destination, SpirvInstruction *source,
+    SpirvInstruction *elementNumBytes, SpirvInstruction *numElements,
+    SpirvInstruction *stride, SpirvInstruction *event,
+    llvm::Optional<spv::MemoryAccessMask> destMask,
+    llvm::Optional<spv::MemoryAccessMask> srcMask,
+    SourceLocation loc, SourceRange range) {
+  assert(insertPoint && "null insert point");
+  auto *inst = new (context) SpirvUntypedGroupAsyncCopyKHR(
+      resultType, loc, executionScope, destination, source,
+      elementNumBytes, numElements, stride, event,
+      destMask, srcMask, range);
+  insertPoint->addInstruction(inst);
+  return inst;
+}
+
 SpirvFunctionCall *
 SpirvBuilder::createFunctionCall(QualType returnType, SpirvFunction *func,
                                  llvm::ArrayRef<SpirvInstruction *> params,

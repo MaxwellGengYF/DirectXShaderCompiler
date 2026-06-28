@@ -113,8 +113,11 @@ public:
     IK_CompositeConstruct,       // OpCompositeConstruct
     IK_CompositeExtract,         // OpCompositeExtract
     IK_CompositeInsert,          // OpCompositeInsert
+    IK_CopyMemory,               // OpCopyMemory
+    IK_CopyMemorySized,          // OpCopyMemorySized
     IK_CopyObject,               // OpCopyObject
     IK_DemoteToHelperInvocation, // OpDemoteToHelperInvocation
+    IK_UntypedGroupAsyncCopyKHR, // OpUntypedGroupAsyncCopyKHR
     IK_IsHelperInvocationEXT,    // OpIsHelperInvocationEXT
     IK_ExtInst,                  // OpExtInst
     IK_FunctionCall,             // OpFunctionCall
@@ -2153,6 +2156,171 @@ public:
 
 private:
   SpirvInstruction *pointer;
+};
+
+/// \brief OpCopyMemory instruction
+/// Copies from source pointer to target pointer. No result.
+class SpirvCopyMemory : public SpirvInstruction {
+public:
+  SpirvCopyMemory(SourceLocation loc, SpirvInstruction *target,
+                  SpirvInstruction *source,
+                  llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None,
+                  llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None,
+                  SourceRange range = {});
+
+  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvCopyMemory)
+
+  // For LLVM-style RTTI
+  static bool classof(const SpirvInstruction *inst) {
+    return inst->getKind() == IK_CopyMemory;
+  }
+
+  bool invokeVisitor(Visitor *v) override;
+
+  SpirvInstruction *getTarget() const { return target; }
+  SpirvInstruction *getSource() const { return source; }
+  bool hasMemoryOperands() const { return memoryAccess[0].hasValue(); }
+  bool hasTwoMemoryOperands() const {
+    return memoryAccess[1].hasValue();
+  }
+  spv::MemoryAccessMask getMemoryAccess(uint32_t index = 0) const {
+    return memoryAccess[index].getValue();
+  }
+
+  void setAlignment(uint32_t index, uint32_t alignment);
+  bool hasAlignment(uint32_t index) const {
+    return memoryAlignment[index].hasValue();
+  }
+  uint32_t getAlignment(uint32_t index) const {
+    return memoryAlignment[index].getValue();
+  }
+
+  void replaceOperand(
+      llvm::function_ref<SpirvInstruction *(SpirvInstruction *)> remapOp,
+      bool inEntryFunctionWrapper) override {
+    target = remapOp(target);
+    source = remapOp(source);
+  }
+
+private:
+  SpirvInstruction *target;
+  SpirvInstruction *source;
+  llvm::Optional<spv::MemoryAccessMask> memoryAccess[2];
+  llvm::Optional<uint32_t> memoryAlignment[2];
+};
+
+/// \brief OpCopyMemorySized instruction
+/// Copies Size bytes from source pointer to target pointer. No result.
+class SpirvCopyMemorySized : public SpirvInstruction {
+public:
+  SpirvCopyMemorySized(SourceLocation loc, SpirvInstruction *target,
+                       SpirvInstruction *source, SpirvInstruction *size,
+                       llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None,
+                       llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None,
+                       SourceRange range = {});
+
+  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvCopyMemorySized)
+
+  // For LLVM-style RTTI
+  static bool classof(const SpirvInstruction *inst) {
+    return inst->getKind() == IK_CopyMemorySized;
+  }
+
+  bool invokeVisitor(Visitor *v) override;
+
+  SpirvInstruction *getTarget() const { return target; }
+  SpirvInstruction *getSource() const { return source; }
+  SpirvInstruction *getSize() const { return size; }
+  bool hasMemoryOperands() const { return memoryAccess[0].hasValue(); }
+  bool hasTwoMemoryOperands() const { return memoryAccess[1].hasValue(); }
+  spv::MemoryAccessMask getMemoryAccess(uint32_t index = 0) const {
+    return memoryAccess[index].getValue();
+  }
+  void setAlignment(uint32_t index, uint32_t alignment);
+  bool hasAlignment(uint32_t index) const {
+    return memoryAlignment[index].hasValue();
+  }
+  uint32_t getAlignment(uint32_t index) const {
+    return memoryAlignment[index].getValue();
+  }
+
+  void replaceOperand(
+      llvm::function_ref<SpirvInstruction *(SpirvInstruction *)> remapOp,
+      bool inEntryFunctionWrapper) override {
+    target = remapOp(target);
+    source = remapOp(source);
+    size = remapOp(size);
+  }
+
+private:
+  SpirvInstruction *target;
+  SpirvInstruction *source;
+  SpirvInstruction *size;
+  llvm::Optional<spv::MemoryAccessMask> memoryAccess[2];
+  llvm::Optional<uint32_t> memoryAlignment[2];
+};
+
+/// \brief OpUntypedGroupAsyncCopyKHR instruction
+/// Async group copy with untyped pointers. Has result (OpTypeEvent).
+class SpirvUntypedGroupAsyncCopyKHR : public SpirvInstruction {
+public:
+  SpirvUntypedGroupAsyncCopyKHR(
+      QualType resultType, SourceLocation loc,
+      SpirvInstruction *executionScope, SpirvInstruction *destination,
+      SpirvInstruction *source, SpirvInstruction *elementNumBytes,
+      SpirvInstruction *numElements, SpirvInstruction *stride,
+      SpirvInstruction *event,
+      llvm::Optional<spv::MemoryAccessMask> destMask = llvm::None,
+      llvm::Optional<spv::MemoryAccessMask> srcMask = llvm::None,
+      SourceRange range = {});
+
+  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvUntypedGroupAsyncCopyKHR)
+
+  // For LLVM-style RTTI
+  static bool classof(const SpirvInstruction *inst) {
+    return inst->getKind() == IK_UntypedGroupAsyncCopyKHR;
+  }
+
+  bool invokeVisitor(Visitor *v) override;
+
+  SpirvInstruction *getExecutionScope() const { return executionScope; }
+  SpirvInstruction *getDestination() const { return destination; }
+  SpirvInstruction *getSource() const { return source; }
+  SpirvInstruction *getElementNumBytes() const { return elementNumBytes; }
+  SpirvInstruction *getNumElements() const { return numElements; }
+  SpirvInstruction *getStride() const { return stride; }
+  SpirvInstruction *getEvent() const { return event; }
+  bool hasDestMemoryAccess() const { return destMemoryAccess.hasValue(); }
+  bool hasSrcMemoryAccess() const { return srcMemoryAccess.hasValue(); }
+  spv::MemoryAccessMask getDestMemoryAccess() const {
+    return destMemoryAccess.getValue();
+  }
+  spv::MemoryAccessMask getSrcMemoryAccess() const {
+    return srcMemoryAccess.getValue();
+  }
+
+  void replaceOperand(
+      llvm::function_ref<SpirvInstruction *(SpirvInstruction *)> remapOp,
+      bool inEntryFunctionWrapper) override {
+    executionScope = remapOp(executionScope);
+    destination = remapOp(destination);
+    source = remapOp(source);
+    elementNumBytes = remapOp(elementNumBytes);
+    numElements = remapOp(numElements);
+    stride = remapOp(stride);
+    event = remapOp(event);
+  }
+
+private:
+  SpirvInstruction *executionScope;
+  SpirvInstruction *destination;
+  SpirvInstruction *source;
+  SpirvInstruction *elementNumBytes;
+  SpirvInstruction *numElements;
+  SpirvInstruction *stride;
+  SpirvInstruction *event;
+  llvm::Optional<spv::MemoryAccessMask> destMemoryAccess;
+  llvm::Optional<spv::MemoryAccessMask> srcMemoryAccess;
 };
 
 /// \brief OpSampledImage instruction

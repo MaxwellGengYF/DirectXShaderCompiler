@@ -843,6 +843,13 @@ private:
   /// Process vk::ext_execution_mode_id intrinsic
   SpirvInstruction *processIntrinsicExecutionModeId(const CallExpr *expr);
 
+  /// Process __builtin_spirv_copy_memory calls (OpCopyMemory)
+  SpirvInstruction *processIntrinsicCopyMemory(const CallExpr *callExpr);
+  /// Process __builtin_spirv_copy_memory_sized calls (OpCopyMemorySized)
+  SpirvInstruction *processIntrinsicCopyMemorySized(const CallExpr *callExpr);
+  /// Process __builtin_spirv_group_async_copy calls (OpUntypedGroupAsyncCopyKHR)
+  SpirvInstruction *processIntrinsicGroupAsyncCopy(const CallExpr *callExpr);
+
   /// Processes the 'firstbit{high|low}' intrinsic functions.
   SpirvInstruction *processIntrinsicFirstbit(const CallExpr *,
                                              GLSLstd450 glslOpcode);

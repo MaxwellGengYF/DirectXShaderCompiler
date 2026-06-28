@@ -85,8 +85,11 @@ DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvImageSparseTexelsResident)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvImageTexelPointer)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvUntypedImageTexelPointerEXT)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvLoad)
+DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCopyMemory)
+DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCopyMemorySized)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCopyObject)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvSampledImage)
+DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvUntypedGroupAsyncCopyKHR)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvSelect)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvSpecConstantBinaryOp)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvSpecConstantUnaryOp)
@@ -1050,6 +1053,61 @@ void SpirvStore::setAlignment(uint32_t alignment) {
         memoryAccess.getValue() | spv::MemoryAccessMask::Aligned;
   }
   memoryAlignment = alignment;
+}
+
+// SpirvCopyMemory
+SpirvCopyMemory::SpirvCopyMemory(
+    SourceLocation loc, SpirvInstruction *target, SpirvInstruction *source,
+    llvm::Optional<spv::MemoryAccessMask> mask1,
+    llvm::Optional<spv::MemoryAccessMask> mask2, SourceRange range)
+    : SpirvInstruction(IK_CopyMemory, spv::Op::OpCopyMemory, QualType(), loc, range),
+      target(target), source(source) {
+  memoryAccess[0] = mask1;
+  memoryAccess[1] = mask2;
+}
+
+void SpirvCopyMemory::setAlignment(uint32_t index, uint32_t alignment) {
+  assert(index < 2 && "Memory access index must be 0 or 1");
+  assert(static_cast<uint32_t>(memoryAccess[index].getValue()) &
+         static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+  memoryAlignment[index] = alignment;
+}
+
+// SpirvCopyMemorySized
+SpirvCopyMemorySized::SpirvCopyMemorySized(
+    SourceLocation loc, SpirvInstruction *target, SpirvInstruction *source,
+    SpirvInstruction *size,
+    llvm::Optional<spv::MemoryAccessMask> mask1,
+    llvm::Optional<spv::MemoryAccessMask> mask2, SourceRange range)
+    : SpirvInstruction(IK_CopyMemorySized, spv::Op::OpCopyMemorySized, QualType(), loc, range),
+      target(target), source(source), size(size) {
+  memoryAccess[0] = mask1;
+  memoryAccess[1] = mask2;
+}
+
+void SpirvCopyMemorySized::setAlignment(uint32_t index, uint32_t alignment) {
+  assert(index < 2 && "Memory access index must be 0 or 1");
+  assert(static_cast<uint32_t>(memoryAccess[index].getValue()) &
+         static_cast<uint32_t>(spv::MemoryAccessMask::Aligned));
+  memoryAlignment[index] = alignment;
+}
+
+// SpirvUntypedGroupAsyncCopyKHR
+SpirvUntypedGroupAsyncCopyKHR::SpirvUntypedGroupAsyncCopyKHR(
+    QualType resultType, SourceLocation loc,
+    SpirvInstruction *executionScope, SpirvInstruction *destination,
+    SpirvInstruction *source, SpirvInstruction *elementNumBytes,
+    SpirvInstruction *numElements, SpirvInstruction *stride,
+    SpirvInstruction *event,
+    llvm::Optional<spv::MemoryAccessMask> destMask,
+    llvm::Optional<spv::MemoryAccessMask> srcMask, SourceRange range)
+    : SpirvInstruction(IK_UntypedGroupAsyncCopyKHR, spv::Op::OpUntypedGroupAsyncCopyKHR,
+                       resultType, loc, range),
+      executionScope(executionScope), destination(destination), source(source),
+      elementNumBytes(elementNumBytes), numElements(numElements), stride(stride),
+      event(event) {
+  destMemoryAccess = destMask;
+  srcMemoryAccess = srcMask;
 }
 
 SpirvNullaryOp::SpirvNullaryOp(spv::Op opcode, SourceLocation loc,

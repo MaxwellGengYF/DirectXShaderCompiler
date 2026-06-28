@@ -39,6 +39,9 @@ public:
   bool visit(SpirvAtomic *) override;
   bool visit(SpirvDemoteToHelperInvocation *) override;
   bool visit(SpirvIsHelperInvocationEXT *) override;
+  bool visit(SpirvCopyMemory *) override;
+  bool visit(SpirvCopyMemorySized *) override;
+  bool visit(SpirvUntypedGroupAsyncCopyKHR *) override;
   bool visit(SpirvReadClock *) override;
 
   using Visitor::visit;

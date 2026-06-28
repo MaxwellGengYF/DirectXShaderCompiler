@@ -286,8 +286,11 @@ public:
   bool visit(SpirvImageSparseTexelsResident *) override;
   bool visit(SpirvImageTexelPointer *) override;
   bool visit(SpirvLoad *) override;
+  bool visit(SpirvCopyMemory *) override;
+  bool visit(SpirvCopyMemorySized *) override;
   bool visit(SpirvCopyObject *) override;
   bool visit(SpirvSampledImage *) override;
+  bool visit(SpirvUntypedGroupAsyncCopyKHR *) override;
   bool visit(SpirvSelect *) override;
   bool visit(SpirvSpecConstantBinaryOp *) override;
   bool visit(SpirvSpecConstantUnaryOp *) override;

@@ -3175,6 +3175,11 @@ SpirvInstruction *SpirvEmitter::doBinaryOperator(const BinaryOperator *expr) {
                          expr->getSourceRange(), expr->getOperatorLoc());
 }
 
+// Forward declarations for memory copy intrinsic identification functions
+static bool isIntrinsicCopyMemory(const FunctionDecl *FD);
+static bool isIntrinsicCopyMemorySized(const FunctionDecl *FD);
+static bool isIntrinsicGroupAsyncCopy(const FunctionDecl *FD);
+
 SpirvInstruction *SpirvEmitter::doCallExpr(const CallExpr *callExpr,
                                            SourceRange rangeOverride) {
   if (const auto *operatorCall = dyn_cast<CXXOperatorCallExpr>(callExpr)) {
@@ -3205,6 +3210,14 @@ SpirvInstruction *SpirvEmitter::doCallExpr(const CallExpr *callExpr,
       return processCooperativeMatrixReduceNV(callExpr);
     if (isCooperativeMatrixPerElementOpNVIntrinsic(funcDecl))
       return processCooperativeMatrixPerElementOpNV(callExpr);
+
+    // Check for builtin spirv memory copy intrinsics
+    if (isIntrinsicCopyMemory(funcDecl))
+      return processIntrinsicCopyMemory(callExpr);
+    if (isIntrinsicCopyMemorySized(funcDecl))
+      return processIntrinsicCopyMemorySized(callExpr);
+    if (isIntrinsicGroupAsyncCopy(funcDecl))
+      return processIntrinsicGroupAsyncCopy(callExpr);
 
     if (funcDecl->hasAttr<VKInstructionExtAttr>())
       return processSpvIntrinsicCallExpr(callExpr);
@@ -16750,6 +16763,159 @@ SpirvEmitter::processIntrinsicExecutionModeId(const CallExpr *expr) {
   return spvBuilder.addExecutionModeId(entryFunction,
                                        static_cast<spv::ExecutionMode>(exeMode),
                                        execModesParams, expr->getExprLoc());
+}
+
+// === Helper identification functions for SPIR-V memory copy intrinsics ===
+
+static bool isIntrinsicCopyMemory(const FunctionDecl *FD) {
+  return FD->getName() == "__builtin_spirv_copy_memory";
+}
+
+static bool isIntrinsicCopyMemorySized(const FunctionDecl *FD) {
+  return FD->getName() == "__builtin_spirv_copy_memory_sized";
+}
+
+static bool isIntrinsicGroupAsyncCopy(const FunctionDecl *FD) {
+  return FD->getName() == "__builtin_spirv_group_async_copy";
+}
+
+// === Processing functions ===
+
+SpirvInstruction *SpirvEmitter::processIntrinsicCopyMemory(
+    const CallExpr *callExpr) {
+  const auto *funcDecl = callExpr->getDirectCallee();
+  const auto args = callExpr->getArgs();
+  const SourceLocation loc = callExpr->getExprLoc();
+  const SourceRange range = callExpr->getSourceRange();
+
+  // Expect: target (ptr), source (ptr), [optional mask1], [optional mask2]
+  // Handle [[vk::ext_reference]] parameters (must be lvalues/pointers)
+  auto handleRefParam = [&](uint32_t idx) -> SpirvInstruction * {
+    const Expr *arg = args[idx]->IgnoreParenLValueCasts();
+    SpirvInstruction *argInst = doExpr(arg);
+    if (argInst->isRValue()) {
+      emitError("argument for a parameter with vk::ext_reference attribute "
+                "must be a reference",
+                arg->getExprLoc());
+      return nullptr;
+    }
+    return argInst;
+  };
+
+  SpirvInstruction *target = handleRefParam(0);
+  SpirvInstruction *source = handleRefParam(1);
+  if (!target || !source) return nullptr;
+
+  llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None;
+  llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None;
+
+  if (callExpr->getNumArgs() > 2) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[2], isSpecConstantMode)))
+      mask1 = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+  if (callExpr->getNumArgs() > 3) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[3], isSpecConstantMode)))
+      mask2 = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+
+  spvBuilder.createCopyMemory(target, source, mask1, mask2, loc, range);
+  return nullptr; // void return
+}
+
+SpirvInstruction *SpirvEmitter::processIntrinsicCopyMemorySized(
+    const CallExpr *callExpr) {
+  const auto *funcDecl = callExpr->getDirectCallee();
+  const auto args = callExpr->getArgs();
+  const SourceLocation loc = callExpr->getExprLoc();
+  const SourceRange range = callExpr->getSourceRange();
+
+  // Expect: target (ptr), source (ptr), size, [optional mask1], [optional mask2]
+  auto handleRefParam = [&](uint32_t idx) -> SpirvInstruction * {
+    const Expr *arg = args[idx]->IgnoreParenLValueCasts();
+    SpirvInstruction *argInst = doExpr(arg);
+    if (argInst->isRValue()) {
+      emitError("argument for a parameter with vk::ext_reference attribute "
+                "must be a reference",
+                arg->getExprLoc());
+      return nullptr;
+    }
+    return argInst;
+  };
+
+  SpirvInstruction *target = handleRefParam(0);
+  SpirvInstruction *source = handleRefParam(1);
+  SpirvInstruction *size = doExpr(args[2]);
+  if (!target || !source) return nullptr;
+
+  llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None;
+  llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None;
+
+  if (callExpr->getNumArgs() > 3) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[3], isSpecConstantMode)))
+      mask1 = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+  if (callExpr->getNumArgs() > 4) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[4], isSpecConstantMode)))
+      mask2 = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+
+  spvBuilder.createCopyMemorySized(target, source, size, mask1, mask2, loc, range);
+  return nullptr; // void return
+}
+
+SpirvInstruction *SpirvEmitter::processIntrinsicGroupAsyncCopy(
+    const CallExpr *callExpr) {
+  const auto *funcDecl = callExpr->getDirectCallee();
+  const auto args = callExpr->getArgs();
+  const SourceLocation loc = callExpr->getExprLoc();
+  const SourceRange range = callExpr->getSourceRange();
+
+  // Expect: execution_scope, dest, source, elem_bytes, num_elems, stride, event
+  // Optional: destMemoryAccess, srcMemoryAccess
+  auto handleRefParam = [&](uint32_t idx) -> SpirvInstruction * {
+    const Expr *arg = args[idx]->IgnoreParenLValueCasts();
+    SpirvInstruction *argInst = doExpr(arg);
+    if (argInst->isRValue()) {
+      emitError("argument for a parameter with vk::ext_reference attribute "
+                "must be a reference",
+                arg->getExprLoc());
+      return nullptr;
+    }
+    return argInst;
+  };
+
+  SpirvInstruction *execScope = doExpr(args[0]);
+  SpirvInstruction *dest = handleRefParam(1);
+  SpirvInstruction *src = handleRefParam(2);
+  SpirvInstruction *elemBytes = doExpr(args[3]);
+  SpirvInstruction *numElems = doExpr(args[4]);
+  SpirvInstruction *stride = doExpr(args[5]);
+  SpirvInstruction *event = doExpr(args[6]);
+  if (!dest || !src) return nullptr;
+
+  llvm::Optional<spv::MemoryAccessMask> destMask = llvm::None;
+  llvm::Optional<spv::MemoryAccessMask> srcMask = llvm::None;
+
+  if (callExpr->getNumArgs() > 7) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[7], isSpecConstantMode)))
+      destMask = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+  if (callExpr->getNumArgs() > 8) {
+    if (auto *constVal = dyn_cast<SpirvConstantInteger>(
+            constEvaluator.tryToEvaluateAsConst(args[8], isSpecConstantMode)))
+      srcMask = static_cast<spv::MemoryAccessMask>(constVal->getValue().getZExtValue());
+  }
+
+  QualType retType = callExpr->getType();
+
+  return spvBuilder.createUntypedGroupAsyncCopyKHR(
+      retType, execScope, dest, src, elemBytes, numElems, stride, event,
+      destMask, srcMask, loc, range);
 }
 
 SpirvInstruction *

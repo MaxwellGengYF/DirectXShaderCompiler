@@ -1048,5 +1048,24 @@ bool CapabilityVisitor::visit(SpirvModule *, Visitor::Phase phase) {
   return true;
 }
 
+bool CapabilityVisitor::visit(SpirvCopyMemory *inst) {
+  // OpCopyMemory is core — no capabilities needed
+  return true;
+}
+
+bool CapabilityVisitor::visit(SpirvCopyMemorySized *inst) {
+  // OpCopyMemorySized requires Addresses capability
+  addCapability(spv::Capability::Addresses, inst->getSourceLocation());
+  return true;
+}
+
+bool CapabilityVisitor::visit(SpirvUntypedGroupAsyncCopyKHR *inst) {
+  // Requires UntypedPointersKHR capability + SPV_KHR_untyped_pointers extension
+  addCapability(spv::Capability::UntypedPointersKHR, inst->getSourceLocation());
+  addExtension(Extension::KHR_untyped_pointers, "SpirvUntypedGroupAsyncCopyKHR",
+               inst->getSourceLocation());
+  return true;
+}
+
 } // end namespace spirv
 } // end namespace clang

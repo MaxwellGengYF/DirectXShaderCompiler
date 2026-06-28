@@ -189,6 +189,31 @@ public:
   SpirvCopyObject *createCopyObject(QualType resultType,
                                     SpirvInstruction *pointer, SourceLocation);
 
+  /// \brief Creates an OpCopyMemory instruction.
+  void createCopyMemory(
+      SpirvInstruction *target, SpirvInstruction *source,
+      llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None,
+      llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None,
+      SourceLocation loc = {}, SourceRange range = {});
+
+  /// \brief Creates an OpCopyMemorySized instruction.
+  void createCopyMemorySized(
+      SpirvInstruction *target, SpirvInstruction *source,
+      SpirvInstruction *size,
+      llvm::Optional<spv::MemoryAccessMask> mask1 = llvm::None,
+      llvm::Optional<spv::MemoryAccessMask> mask2 = llvm::None,
+      SourceLocation loc = {}, SourceRange range = {});
+
+  /// \brief Creates an OpUntypedGroupAsyncCopyKHR instruction.
+  SpirvUntypedGroupAsyncCopyKHR *createUntypedGroupAsyncCopyKHR(
+      QualType resultType, SpirvInstruction *executionScope,
+      SpirvInstruction *destination, SpirvInstruction *source,
+      SpirvInstruction *elementNumBytes, SpirvInstruction *numElements,
+      SpirvInstruction *stride, SpirvInstruction *event,
+      llvm::Optional<spv::MemoryAccessMask> destMask = llvm::None,
+      llvm::Optional<spv::MemoryAccessMask> srcMask = llvm::None,
+      SourceLocation loc = {}, SourceRange range = {});
+
   /// \brief Creates a store sequence storing the given value into the given
   /// address. Returns the instruction pointer for the store instruction.
   /// This function handles storing to bitfields.
