@@ -392,6 +392,7 @@ SpirvUntypedGroupAsyncCopyKHR *SpirvBuilder::createUntypedGroupAsyncCopyKHR(
       resultType, loc, executionScope, destination, source,
       elementNumBytes, numElements, stride, event,
       destMask, srcMask, range);
+  inst->setRValue(true);
   insertPoint->addInstruction(inst);
   return inst;
 }
