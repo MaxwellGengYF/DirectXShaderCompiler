@@ -1,9 +1,6 @@
-// RUN: %dxc -T cs_6_0 -E main -spirv -HV 202x -Od -fspv-print-all %s | FileCheck %s
+// RUN: %dxc -T cs_6_0 -E main -spirv -HV 202x -Od -fspv-target-env=vulkan1.2 %s | FileCheck %s
 //
 // OpUntypedGroupAsyncCopyKHR emission test.
-// NOTE: Validates instruction/capability/extension emission only.
-// Full SPIR-V validation requires OpTypeUntypedPointerKHR operands,
-// which needs the separate SPV_KHR_untyped_pointers type infra.
 
 [[vk::ext_instruction(4434, "")]]
 [[vk::ext_capability(/*UntypedPointersKHR*/ 4473)]]
@@ -20,8 +17,11 @@ uint __builtin_spirv_group_async_copy(
 
 groupshared uint gs_buf[64];
 
+// CHECK: OpCapability WorkgroupMemoryExplicitLayoutKHR
 // CHECK: OpCapability UntypedPointersKHR
+// CHECK: OpExtension "SPV_KHR_workgroup_memory_explicit_layout"
 // CHECK: OpExtension "SPV_KHR_untyped_pointers"
+// CHECK: OpDecorate {{\%?}}_arr_uint_uint_64 ArrayStride 4
 // CHECK: OpUntypedGroupAsyncCopyKHR
 [numthreads(1, 1, 1)]
 void main() {

@@ -1067,5 +1067,18 @@ bool CapabilityVisitor::visit(SpirvUntypedGroupAsyncCopyKHR *inst) {
   return true;
 }
 
+bool CapabilityVisitor::visit(SpirvUntypedAccessChainKHR *inst) {
+  // Workgroup storage class untyped pointers in Vulkan require
+  // WorkgroupMemoryExplicitLayoutKHR capability +
+  // SPV_KHR_workgroup_memory_explicit_layout extension.
+  if (inst->getStorageClass() == spv::StorageClass::Workgroup) {
+    addCapability(spv::Capability::WorkgroupMemoryExplicitLayoutKHR,
+                  inst->getSourceLocation());
+    addExtension(Extension::KHR_workgroup_memory_explicit_layout,
+                 "SpirvUntypedAccessChainKHR", inst->getSourceLocation());
+  }
+  return true;
+}
+
 } // end namespace spirv
 } // end namespace clang
