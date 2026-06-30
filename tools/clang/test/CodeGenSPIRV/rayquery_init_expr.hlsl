@@ -18,6 +18,10 @@ void main() {
   SomeStruct Payload;
   Payload.DummyMethod();
 
+// In -fcgl mode, Fun() is emitted before main(), so %RayQ (from Fun())
+// comes before %RayQ0/%RayQ1/%RayQ2 (from main()).
+// CHECK: %RayQ = OpVariable %_ptr_Function_rayQueryKHR Function
+
 // CHECK:     %RayQ0 = OpVariable %_ptr_Function_rayQueryKHR Function
 // CHECK-NOT: OpStore %RayQ0
   RayQuery<0> RayQ0;
@@ -31,6 +35,5 @@ void main() {
 // CHECK: OpStore %RayQ2 [[rayq0]]
   RayQuery<0> RayQ2 = RayQ0;
 
-// CHECK: %RayQ = OpVariable %_ptr_Function_rayQueryKHR Function
   Fun();
 }

@@ -1049,7 +1049,7 @@ bool CapabilityVisitor::visit(SpirvModule *, Visitor::Phase phase) {
 }
 
 bool CapabilityVisitor::visit(SpirvCopyMemory *inst) {
-  // OpCopyMemory is core — no capabilities needed
+  // OpCopyMemory is core - no capabilities needed
   return true;
 }
 

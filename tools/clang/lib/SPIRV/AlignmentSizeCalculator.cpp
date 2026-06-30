@@ -109,6 +109,22 @@ std::pair<uint32_t, uint32_t> AlignmentSizeCalculator::getAlignmentAndSize(
     std::tie(memberAlignment, memberSize) =
         getAlignmentAndSize(field->getType(), rule, isRowMajor, stride);
 
+    // HLSL Change Begins
+    // For bool bitfields, use the bitfield width for size/alignment calculation
+    // so that "bool a : 8" occupies only 1 byte instead of 4 bytes.
+    if (field->isBitField()) {
+      const Type *elemType = field->getType()->getBaseElementTypeUnsafe();
+      if (elemType->isBooleanType()) {
+        unsigned Width = field->getBitWidthValue(astContext);
+        unsigned byteSize = std::max(1u, (Width + 7) / 8);
+        if (byteSize < memberSize) {
+          memberSize = byteSize;
+          memberAlignment = std::min(memberAlignment, byteSize);
+        }
+      }
+    }
+    // HLSL Change Ends
+
     uint32_t memberBitOffset = 0;
     do {
       if (!lastField)

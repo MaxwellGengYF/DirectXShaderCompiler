@@ -24,8 +24,8 @@ void main(uint3 tid : SV_DispatchThreadID)
   textures[0][tid.xy] = float2(1.0, 0.0);
 
 // CHECK: [[img:%[0-9]+]] = OpFunctionCall %type_2d_image %GetTexture
-// CHECK:                   OpStore %tex [[img]]
-// CHECK: [[tmp:%[0-9]+]] = OpLoad %type_2d_image %tex
+// CHECK:                   OpStore %tex{{%[0-9]*}} [[img]]
+// CHECK: [[tmp:%[0-9]+]] = OpLoad %type_2d_image %tex{{%[0-9]*}}
 // CHECK:                   OpImageWrite [[tmp]] {{.*}} {{.*}} None
 	RWTexture2D<float2> tex = GetTexture();
   tex[tid.xy] = float2(1.0, 0.0);

@@ -4435,6 +4435,19 @@ static void StoreInitListToDestPtr(Value *DestPtr,
         unsigned i = RL.getLLVMFieldNo(field);
         Constant *gepIdx = Builder.getInt32(i);
         Value *GEP = Builder.CreateInBoundsGEP(DestPtr, {zero, gepIdx});
+        // HLSL Change Begins
+        // Bitfields may use a smaller storage type than the field's formal
+        // type (e.g. bool :8 stored in i8). Use the standard bitfield store
+        // path so the value is written into the correctly-sized storage unit.
+        if (field->isBitField()) {
+          LValue BaseLV = CGF.MakeNaturalAlignAddrLValue(DestPtr, Type);
+          LValue FieldLV = CGF.EmitLValueForFieldInitialization(BaseLV, field);
+          Value *V = elts[idx];
+          CGF.EmitStoreThroughBitfieldLValue(RValue::get(V), FieldLV);
+          idx++;
+          continue;
+        }
+        // HLSL Change Ends
         StoreInitListToDestPtr(GEP, elts, idx, field->getType(),
                                bDefaultRowMajor, CGF, M);
       }
@@ -6091,8 +6104,22 @@ void CGMSHLSLRuntime::EmitHLSLSplat(CodeGenFunction &CGF, Value *SrcVal,
           IntegerType::get(Ty->getContext(), 32), APInt(32, i));
       idxList.emplace_back(idx);
 
-      EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, fieldIter->getType(),
-                    SrcType, ET);
+      // HLSL Change Begins
+      // Bitfields may use a smaller storage type than the field's formal
+      // type. Use the standard bitfield store path so the scalar value is
+      // written into the correctly-sized storage unit.
+      if (fieldIter->isBitField()) {
+        LValue BaseLV = CGF.MakeNaturalAlignAddrLValue(DestPtr, Type);
+        LValue FieldLV =
+            CGF.EmitLValueForFieldInitialization(BaseLV, *fieldIter);
+        Value *V =
+            ConvertScalarOrVector(CGF, SrcVal, SrcType, fieldIter->getType());
+        CGF.EmitStoreThroughBitfieldLValue(RValue::get(V), FieldLV);
+      } else {
+        // HLSL Change Ends
+        EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, fieldIter->getType(),
+                      SrcType, ET);
+      }
 
       idxList.pop_back();
     }

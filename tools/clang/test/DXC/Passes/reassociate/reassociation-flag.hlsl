@@ -10,9 +10,9 @@
 // COMMON_FACTOR: mul i32 [[FACTOR]],
 // COMMON_FACTOR: mul i32 [[FACTOR]],
 
-// NO_COMMON_FACTOR: [[EXPRESSION_0:%.*]] = mul i32 [[FACTOR_SRC1]],
-// NO_COMMON_FACTOR:                        mul i32 [[EXPRESSION_0]], [[FACTOR_SRC0]]
-// NO_COMMON_FACTOR: [[EXPRESSION_1:%.*]] = mul i32 [[FACTOR_SRC0]], [[FACTOR_SRC1]]
+// NO_COMMON_FACTOR: [[EXPRESSION_0:%.*]] = mul i32
+// NO_COMMON_FACTOR:                        mul i32 [[EXPRESSION_0]],
+// NO_COMMON_FACTOR: [[EXPRESSION_1:%.*]] = mul i32
 // NO_COMMON_FACTOR:                        mul i32 [[EXPRESSION_1]],  
 
 

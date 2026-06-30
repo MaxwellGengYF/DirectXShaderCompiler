@@ -16920,66 +16920,20 @@ SpirvInstruction *SpirvEmitter::processIntrinsicGroupAsyncCopy(
       emitError("null argument for vk::ext_reference parameter", loc);
       return nullptr;
     }
-    llvm::SmallVector<SpirvInstruction *, 4> indices;
-    const Expr *baseExpr = collectArrayStructIndices(
-        arg, /*rawIndex=*/false, /*rawIndices=*/nullptr, &indices);
-    if (!baseExpr) {
-      emitError("null base expression for vk::ext_reference parameter",
+    SpirvInstruction *argInst = doExpr(arg);
+    if (!argInst) {
+      emitError("null instruction for vk::ext_reference parameter",
                 arg->getExprLoc());
       return nullptr;
     }
-    SpirvInstruction *base = doExpr(baseExpr);
-    if (!base) {
-      emitError("null base instruction for vk::ext_reference parameter",
-                baseExpr->getExprLoc());
-      return nullptr;
-    }
-    if (base->isRValue()) {
+    if (argInst->isRValue()) {
       emitError("argument for a parameter with vk::ext_reference attribute "
                 "must be a reference",
                 arg->getExprLoc());
       return nullptr;
     }
-    spv::StorageClass sc = base->getStorageClass();
 
-    // WorkgroupMemoryExplicitLayoutKHR requires arrays in Workgroup variables
-    // to carry ArrayStride decorations. Ensure the root Workgroup variable has
-    // a non-Void layout rule so LowerTypeVisitor computes those strides.
-    SpirvInstruction *root = base;
-    while (auto *accessChain = dyn_cast<SpirvAccessChain>(root))
-      root = accessChain->getBase();
-    if (auto *rootVar = dyn_cast<SpirvVariable>(root)) {
-      if (rootVar->getStorageClass() == spv::StorageClass::Workgroup &&
-          rootVar->getLayoutRule() == SpirvLayoutRule::Void)
-        rootVar->setLayoutRule(SpirvLayoutRule::RelaxedGLSLStd430);
-    }
-
-    const SpirvType *baseType = nullptr;
-    if (const SpirvType *resultType = base->getResultType()) {
-      if (const SpirvPointerType *ptrType =
-              dyn_cast<SpirvPointerType>(resultType))
-        baseType = ptrType->getPointeeType();
-    }
-    if (!baseType) {
-      // Module variables created directly from QualType do not yet have their
-      // SPIR-V result type when SpirvEmitter runs. Lower the AST type of the
-      // base expression to obtain the pointee SPIR-V type.
-      LowerTypeVisitor lowerTypeVisitor(astContext, spvContext, spirvOptions,
-                                        spvBuilder);
-      baseType = lowerTypeVisitor.lowerType(baseExpr->getType(),
-                                            base->getLayoutRule(), llvm::None,
-                                            baseExpr->getExprLoc());
-    }
-    if (!baseType) {
-      emitError("could not determine pointee type for vk::ext_reference "
-                "parameter",
-                arg->getExprLoc());
-      return nullptr;
-    }
-    const UntypedPointerKHRType *untypedPtrType =
-        spvContext.getUntypedPointerKHRType(sc);
-    return spvBuilder.createUntypedAccessChainKHR(
-        untypedPtrType, baseType, base, indices, loc);
+    return argInst;
   };
 
   SpirvInstruction *execScope = doExpr(args[0]);

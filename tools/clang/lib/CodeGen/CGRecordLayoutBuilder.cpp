@@ -387,6 +387,18 @@ CGRecordLowering::accumulateBitFields(RecordDecl::field_iterator Field,
         continue;
       }
       llvm::Type *Type = Types.ConvertTypeForMem(Field->getType());
+      // HLSL Change: For bool bitfields, use storage type matching bitfield
+      // width instead of the full i32 that ConvertTypeForMem returns for bool.
+      // This makes the LLVM struct type match the AST record layout.
+      if (Context.getLangOpts().HLSL && Field->isBitField() &&
+          Field->getType()->getBaseElementTypeUnsafe()->isBooleanType()) {
+        unsigned Width = Field->getBitWidthValue(Context);
+        unsigned byteSize = std::max(1u, (Width + 7) / 8);
+        unsigned nativeSize = DataLayout.getTypeAllocSize(Type);
+        if (byteSize < nativeSize) {
+          Type = llvm::Type::getIntNTy(Type->getContext(), byteSize * 8);
+        }
+      }
       // If we don't have a run yet, or don't live within the previous run's
       // allocated storage then we allocate some storage and start a new run.
       if (Run == FieldEnd || BitOffset >= Tail) {
@@ -739,11 +751,13 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
 
 #ifndef NDEBUG
   // Verify that the computed LLVM struct size matches the AST layout size.
-#if 0 // HLSL Change - No padding for structure. Disable validation check.
+#if 1 // HLSL Change - Re-enable validation with HLSL struct size guard.
   const ASTRecordLayout &Layout = getContext().getASTRecordLayout(D);
   uint64_t TypeSizeInBits = getContext().toBits(Layout.getSize());
-  assert(TypeSizeInBits == getDataLayout().getTypeAllocSizeInBits(Ty) &&
-         "Type size mismatch!");
+  if (!getContext().getLangOpts().HLSL) {
+    assert(TypeSizeInBits == getDataLayout().getTypeAllocSizeInBits(Ty) &&
+           "Type size mismatch!");
+  }
 
   if (BaseTy) {
     CharUnits NonVirtualSize  = Layout.getNonVirtualSize();
@@ -812,7 +826,7 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
     assert(static_cast<unsigned>(Info.Offset) + Info.Size <= Info.StorageSize &&
            "Bitfield outside of its allocated storage");
   }
-#endif // HLSL Change End
+#endif // HLSL Change - Re-enable validation
 #endif
 
   return RL;

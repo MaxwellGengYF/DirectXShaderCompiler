@@ -806,7 +806,6 @@ bool EmitVisitor::visit(SpirvUntypedAccessChainKHR *inst) {
   initInstruction(inst);
   curInst.push_back(inst->getResultTypeId());
   curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst));
-  curInst.push_back(typeHandler.emitType(inst->getBaseType()));
   curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst->getBase()));
   for (const auto index : inst->getIndices())
     curInst.push_back(getOrAssignResultId<SpirvInstruction>(index));

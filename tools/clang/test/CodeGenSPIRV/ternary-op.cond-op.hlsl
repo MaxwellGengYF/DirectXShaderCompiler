@@ -214,9 +214,9 @@ void main() {
   // CHECK-NEXT:       %if_false_2 = OpLabel
   // CHECK-NEXT:                     OpStore %temp_var_ternary_2 [[gSS2_0]]
   // CHECK-NEXT:                     OpBranch %if_merge_2
-  // CHECK-NEXT:       %if_merge_2 = OpLabel
-  // CHECK-NEXT:  [[tempVar_0:%[0-9]+]] = OpLoad %type_sampler %temp_var_ternary_2
-  // CHECK-NEXT:                     OpStore %s [[tempVar_0]]
+// CHECK-NEXT:       %if_merge_2 = OpLabel
+// CHECK-NEXT:  [[tempVar_0:%[0-9]+]] = OpLoad %type_sampler %temp_var_ternary_2
+// CHECK:                     OpStore %s [[tempVar_0]]
   SamplerState s = intCond ? gSS1 : gSS2;
 }
 

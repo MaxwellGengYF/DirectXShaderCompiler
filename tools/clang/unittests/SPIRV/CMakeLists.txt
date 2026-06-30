@@ -40,6 +40,16 @@ endif()
 # same memory space, and prevents getting two copies of global static variables.
 add_dependencies(ClangSPIRVTests dxcompiler)
 
+# Copy dxcompiler.dll next to the test executable so it can be loaded at runtime.
+if(WIN32)
+  add_custom_command(TARGET ClangSPIRVTests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:dxcompiler>"
+        "$<TARGET_FILE_DIR:ClangSPIRVTests>/$<TARGET_FILE_NAME:dxcompiler>"
+    COMMENT "Copying dxcompiler.dll to test output directory"
+  )
+endif()
+
 target_include_directories(ClangSPIRVTests
   PRIVATE ${SPIRV_TOOLS_INCLUDE_DIR})
 

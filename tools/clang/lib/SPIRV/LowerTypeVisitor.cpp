@@ -46,6 +46,20 @@ static void setDefaultFieldSize(const AlignmentSizeCalculator &alignmentCalc,
   uint32_t memberAlignment = 0, memberSize = 0, stride = 0;
   std::tie(memberAlignment, memberSize) = alignmentCalc.getAlignmentAndSize(
       fieldType, rule, /*isRowMajor*/ llvm::None, &stride);
+
+  // HLSL Change Begins
+  // For bool bitfields, use the bitfield width to determine the field size.
+  if (currentField->bitfield.hasValue()) {
+    const Type *elemType = fieldType->getBaseElementTypeUnsafe();
+    if (elemType->isBooleanType()) {
+      unsigned byteSize = std::max(1u, (currentField->bitfield->sizeInBits + 7) / 8);
+      if (byteSize < memberSize) {
+        memberSize = byteSize;
+      }
+    }
+  }
+  // HLSL Change Ends
+
   field->sizeInBytes = memberSize;
   return;
 }
@@ -63,6 +77,21 @@ setDefaultFieldOffset(const AlignmentSizeCalculator &alignmentCalc,
   uint32_t memberAlignment = 0, memberSize = 0, stride = 0;
   std::tie(memberAlignment, memberSize) = alignmentCalc.getAlignmentAndSize(
       fieldType, rule, /*isRowMajor*/ llvm::None, &stride);
+
+  // HLSL Change Begins
+  // For bool bitfields, use the bitfield width to determine the field size
+  // and alignment, so that "bool a : 8" has size 1 and alignment 1.
+  if (currentField->bitfield.hasValue()) {
+    const Type *elemType = fieldType->getBaseElementTypeUnsafe();
+    if (elemType->isBooleanType()) {
+      unsigned byteSize = std::max(1u, (currentField->bitfield->sizeInBits + 7) / 8);
+      if (byteSize < memberSize) {
+        memberSize = byteSize;
+        memberAlignment = std::min(memberAlignment, byteSize);
+      }
+    }
+  }
+  // HLSL Change Ends
 
   const uint32_t baseOffset = previousFieldEnd;
   // The next avaiable location after laying out the previous members
@@ -1291,6 +1320,18 @@ LowerTypeVisitor::lowerField(const HybridStructType::FieldInfo *field,
   }
   loweredField.bitfield = field->bitfield;
   loweredField.attributes = field->attributes;
+
+  // HLSL Change Begins
+  // For bool bitfields, use a smaller integer type matching the bitfield width.
+  if (field->bitfield.hasValue() && rule != SpirvLayoutRule::Void) {
+    const Type *elemType = field->astType->getBaseElementTypeUnsafe();
+    if (elemType->isBooleanType()) {
+      unsigned byteSize = std::max(1u, (field->bitfield->sizeInBits + 7) / 8);
+      unsigned bitWidth = byteSize * 8;
+      loweredField.type = spvContext.getUIntType(bitWidth);
+    }
+  }
+  // HLSL Change Ends
 
   // We only need layout information for structures with non-void layout rule.
   if (rule == SpirvLayoutRule::Void) {

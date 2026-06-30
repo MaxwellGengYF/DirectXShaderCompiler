@@ -7462,6 +7462,10 @@ class db_dxil(object):
             [
                 {"n": "MaxIterations", "t": "unsigned", "c": 1,
                  "d": "Maximum number of fixed-point iterations (default: 5)"},
+                {"n": "PrintEach", "t": "unsigned", "c": 1,
+                 "d": "Print IR after each iteration (default: 0)"},
+                {"n": "ValidateEach", "t": "unsigned", "c": 1,
+                 "d": "Validate module after each iteration (default: 0)"},
             ],
         )
 

@@ -2314,6 +2314,26 @@ MicrosoftRecordLayoutBuilder::getAdjustedElementInfo(
   ElementInfo Info;
   std::tie(Info.Size, Info.Alignment) =
       Context.getTypeInfoInChars(FD->getType()->getUnqualifiedDesugaredType());
+
+  // HLSL Change Begins
+  // For HLSL bool/boolean bitfields, use the bitfield width for storage
+  // allocation instead of the full type size. This ensures that
+  // "bool a : 8" occupies only 1 byte (instead of 4 bytes) when adjacent
+  // to 16-bit types like half/float16_t.
+  if (Context.getLangOpts().HLSL && FD->isBitField()) {
+    const Type *elemType = FD->getType()->getBaseElementTypeUnsafe();
+    if (elemType->isBooleanType()) {
+      unsigned Width = FD->getBitWidthValue(Context);
+      unsigned byteSize = std::max(1u, (Width + 7) / 8);
+      // Only reduce if the bitfield-based size is smaller than the type size.
+      if (byteSize < Info.Size.getQuantity()) {
+        Info.Size = CharUnits::fromQuantity(byteSize);
+        Info.Alignment = CharUnits::One();
+      }
+    }
+  }
+  // HLSL Change Ends
+
   // Respect align attributes on the field.
   CharUnits FieldRequiredAlignment =
       Context.toCharUnitsFromBits(FD->getMaxAlignment());

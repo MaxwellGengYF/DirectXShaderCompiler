@@ -67,6 +67,10 @@ public:
   void applyOptions(PassOptions O) override {
     GetPassOptionUnsigned(O, "MaxIterations", &m_Opts.MaxIterations,
                           /*defaultValue*/ 5);
+    GetPassOptionBool(O, "PrintEach", &m_Opts.PrintEach,
+                      /*defaultValue*/ false);
+    GetPassOptionBool(O, "ValidateEach", &m_Opts.ValidateEach,
+                      /*defaultValue*/ false);
   }
 
   void dumpConfig(raw_ostream &OS) override {

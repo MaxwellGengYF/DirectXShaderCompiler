@@ -1,5 +1,6 @@
 
 // REQUIRES: system-windows
+// REQUIRES: dxc_batch
 
 // RUN: %batch -lib-link -multi-thread %S\Inputs\batch_cmds2.txt
 // RUN: %batch -lib-link -multi-thread %S\Inputs\batch_cmds.txt
