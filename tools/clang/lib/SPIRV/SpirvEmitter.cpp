@@ -2229,6 +2229,44 @@ void SpirvEmitter::doVarDecl(const VarDecl *decl) {
     // We already know the variable is not externally visible here. If it does
     // not have local storage, it should be file scope variable.
     const bool isFileScopeVar = !decl->hasLocalStorage();
+    // For function-local variables of opaque types (sampler, texture, etc.),
+    // we cannot create a Function storage class OpVariable because Vulkan
+    // forbids storing opaque objects to Function storage. Instead, register
+    // the init expression's SPIR-V instruction directly as the variable's
+    // alias so that references to the variable will use the value directly
+    // instead of going through an invalid OpStore + OpLoad to a
+    // Function-storage-class variable.
+    if (!isFileScopeVar && isOpaqueType(decl->getType()) && decl->getInit()) {
+      const Expr *init = decl->getInit();
+      SpirvInstruction *initInst = doExpr(init, range);
+      if (initInst) {
+        declIdMapper.createFnVarAlias(decl, initInst);
+      } else {
+        // Fall back to the normal path if init evaluation fails.
+        var = declIdMapper.createFnVar(decl, llvm::None);
+        storeValue(var, loadIfGLValue(init), decl->getType(), loc, range);
+      }
+      // Update counter variable associated with local variables
+      tryToAssignCounterVar(decl, init);
+
+      if (spirvOptions.debugInfoRich) {
+        const auto &sm = astContext.getSourceManager();
+        const uint32_t line = sm.getPresumedLineNumber(loc);
+        const uint32_t column = sm.getPresumedColumnNumber(loc);
+        const auto *info = getOrCreateRichDebugInfo(loc);
+        uint32_t flags = 1 << 2;
+        auto *debugLocalVar = spvBuilder.createDebugLocalVariable(
+            decl->getType(), decl->getName(), info->source, line, column,
+            info->scopeStack.back(), flags);
+        if (var)
+          spvBuilder.createDebugDeclare(debugLocalVar, var, loc, range);
+      }
+
+      if (!needsLegalization && isOpaqueType(decl->getType()))
+        needsLegalization = true;
+      return;
+    }
+
     if (isFileScopeVar) {
       if (decl->getType().isConstQualified() &&
           declIdMapper.tryToCreateConstantVar(decl))

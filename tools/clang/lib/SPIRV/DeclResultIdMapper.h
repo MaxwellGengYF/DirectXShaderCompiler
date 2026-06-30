@@ -286,6 +286,11 @@ public:
   SpirvVariable *createFnVar(const VarDecl *var,
                              llvm::Optional<SpirvInstruction *> init);
 
+  /// \brief Registers an alias instruction (a pointer to the source object)
+  /// for a function-local opaque-type variable, avoiding the creation of an
+  /// invalid Function-storage-class OpVariable for opaque types.
+  void createFnVarAlias(const VarDecl *var, SpirvInstruction *aliasInstr);
+
   /// \brief Creates a file-scope variable and returns its instruction.
   SpirvVariable *createFileVar(const VarDecl *var,
                                llvm::Optional<SpirvInstruction *> init);
