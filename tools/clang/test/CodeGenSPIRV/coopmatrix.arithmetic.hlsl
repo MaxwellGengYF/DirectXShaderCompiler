@@ -46,6 +46,7 @@ RWStructuredBuffer<TYPE> data;
   uint32_t length = CoopMat::GetLength();
   CoopMat n = CoopMat::Load<vk::CooperativeMatrixLayoutRowMajorKHR>(structured_buffer, length, 64);
 
+  // FLOATS: OpCompositeConstruct
   // INTEGERS: [[r:%[0-9]+]] = OpIAdd %spirvIntrinsicType [[m]] [[n]]
   // FLOATS: [[r:%[0-9]+]] = OpFAdd %spirvIntrinsicType [[m]] [[n]]
   CoopMat r = m + n;
@@ -58,6 +59,7 @@ RWStructuredBuffer<TYPE> data;
   // FLOATS: [[m:%[0-9]+]] = OpFNegate %spirvIntrinsicType [[n]]
   m = n.negate();
 
+  // CHECK: OpCompositeConstruct
   // INT16: [[r:%[0-9]+]] = OpMatrixTimesScalar %spirvIntrinsicType [[m]] %short_2
   // INT32: [[r:%[0-9]+]] = OpMatrixTimesScalar %spirvIntrinsicType [[m]] %int_2
   // INT64: [[r:%[0-9]+]] = OpMatrixTimesScalar %spirvIntrinsicType [[m]] %long_2

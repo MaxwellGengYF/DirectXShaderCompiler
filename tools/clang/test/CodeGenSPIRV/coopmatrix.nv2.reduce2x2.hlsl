@@ -18,7 +18,7 @@ static const int stride = 64;
       data, 0, stride);
 
   // 2x2 reduction: reduce 2x2 neighborhoods using FAdd (129)
-  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} 2x2 %uint_129
+  // CHECK: OpCooperativeMatrixReduceNV %spirvIntrinsicType_0 {{%[^ ]+}} 2x2 %__coopmat_combine{{[^ ]*}}
   auto mat_result =
       vk::nv::cooperativeMatrixReduce2x2<
           float, vk::ScopeSubgroup, 16, 8,

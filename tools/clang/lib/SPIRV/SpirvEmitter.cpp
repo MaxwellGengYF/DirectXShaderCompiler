@@ -16718,9 +16718,24 @@ SpirvEmitter::processCooperativeMatrixReduceNV(const CallExpr *call) {
   SpirvInstruction *combineOpArg = doExpr(args[2]);
   if (auto *constArg = dyn_cast<SpirvConstant>(reduceModeArg))
     constArg->setLiteral();
+
+  // Replace the integer constant with a proper function reference.
+  SpirvInstruction *combineFuncRef = combineOpArg;
+  QualType compTypeAST = getComponentTypeFromCallee(call);
+  if (!compTypeAST.isNull()) {
+    const SpirvType *componentType = convertASTTypeToSpirvType(compTypeAST);
+    if (componentType) {
+      SpirvFunction *combineFunc =
+          getOrCreateCombineFunction(componentType, compTypeAST);
+      if (combineFunc) {
+        combineFuncRef = new (spvContext) SpirvFunctionRef(combineFunc);
+      }
+    }
+  }
+
   QualType resultType = call->getType();
   SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
-      5366, resultType, {matrixArg, reduceModeArg, combineOpArg},
+      5366, resultType, {matrixArg, reduceModeArg, combineFuncRef},
       {"SPV_NV_cooperative_matrix2"}, "",
       {5430}, call->getExprLoc());
   if (!intrInst) return nullptr;
@@ -16734,14 +16749,139 @@ SpirvEmitter::processCooperativeMatrixPerElementOpNV(const CallExpr *call) {
   assert(call->getNumArgs() == 2);
   SpirvInstruction *matrixArg = doExpr(args[0]);
   SpirvInstruction *funcIdArg = doExpr(args[1]);
+
+  // Replace the integer constant with a proper function reference.
+  SpirvInstruction *funcRef = funcIdArg;
+  QualType compTypeAST = getComponentTypeFromCallee(call);
+  if (!compTypeAST.isNull()) {
+    const SpirvType *componentType = convertASTTypeToSpirvType(compTypeAST);
+    if (componentType) {
+      SpirvFunction *perElemFunc =
+          getOrCreatePerElementFunction(componentType, compTypeAST);
+      if (perElemFunc) {
+        funcRef = new (spvContext) SpirvFunctionRef(perElemFunc);
+      }
+    }
+  }
+
   QualType resultType = call->getType();
   SpirvInstruction *intrInst = spvBuilder.createSpirvIntrInstExt(
-      5369, resultType, {matrixArg, funcIdArg},
+      5369, resultType, {matrixArg, funcRef},
       {"SPV_NV_cooperative_matrix2"}, "",
       {5432}, call->getExprLoc());
   if (!intrInst) return nullptr;
   intrInst->setRValue();
   return intrInst;
+}
+
+QualType
+SpirvEmitter::getComponentTypeFromCallee(const CallExpr *call) {
+  // Get the component type from the matrix argument's AST type.
+  // The argument type is SpirvMatrixType = SpirvOpaqueType<4456, C, ...>
+  // We extract template argument 1 (the component type C).
+  if (call->getNumArgs() < 1)
+    return QualType();
+  QualType matTypeAST = call->getArg(0)->getType();
+  // Try TemplateSpecializationType (for SpirvOpaqueType)
+  if (const auto *tst = matTypeAST->getAs<TemplateSpecializationType>()) {
+    if (tst->getNumArgs() >= 2) {
+      const clang::TemplateArgument &compArg = tst->getArg(1);
+      if (compArg.getKind() == clang::TemplateArgument::Type) {
+        return compArg.getAsType();
+      }
+    }
+  }
+  // Try RecordType (for CooperativeMatrix class)
+  if (const auto *recordType = matTypeAST->getAs<RecordType>()) {
+    const auto *specDecl =
+        dyn_cast<ClassTemplateSpecializationDecl>(recordType->getDecl());
+    if (specDecl && specDecl->getTemplateArgs().size() >= 1) {
+      const clang::TemplateArgument &compArg = specDecl->getTemplateArgs()[0];
+      if (compArg.getKind() == clang::TemplateArgument::Type) {
+        return compArg.getAsType();
+      }
+    }
+  }
+  return QualType();
+}
+
+const SpirvType *
+SpirvEmitter::convertASTTypeToSpirvType(QualType type) {
+  if (type.isNull())
+    return nullptr;
+  if (type->isFloatingType()) {
+    unsigned width = astContext.getTypeSizeInChars(type).getQuantity() * 8;
+    return spvContext.getFloatType(width);
+  }
+  if (type->isIntegerType()) {
+    unsigned width = astContext.getTypeSizeInChars(type).getQuantity() * 8;
+    if (type->isUnsignedIntegerType())
+      return spvContext.getUIntType(width);
+    else
+      return spvContext.getSIntType(width);
+  }
+  return nullptr;
+}
+
+SpirvFunction *
+SpirvEmitter::getOrCreateCombineFunction(const SpirvType *componentType,
+                                           QualType astComponentType) {
+  // The combine function signature is (componentType, componentType) ->
+  // componentType.  We create a minimal body (just an OpReturnValue with
+  // OpUndef) so the function is a definition rather than a declaration
+  // (which would require Import linkage).
+  auto *func = new (spvContext) SpirvFunction(
+      astComponentType, /*SourceLocation*/ {}, "__coopmat_combine", false,
+      false);
+
+  // Add parameters with the correct SPIR-V types.
+  func->addParameter(
+      new (spvContext) SpirvFunctionParameter(componentType, false, false, {}));
+  func->addParameter(
+      new (spvContext) SpirvFunctionParameter(componentType, false, false, {}));
+
+  // Add a basic block with a return of an undef value.
+  auto *bb = new (spvContext) SpirvBasicBlock("entry");
+  func->addBasicBlock(bb);
+  auto *undef = new (spvContext) SpirvUndef(astComponentType);
+  auto *ret = new (spvContext)
+      SpirvReturn(SourceLocation(), undef);
+  bb->addInstruction(undef);
+  bb->addInstruction(ret);
+
+  spvBuilder.getModule()->addFunctionDeclaration(func);
+  return func;
+}
+
+SpirvFunction *
+SpirvEmitter::getOrCreatePerElementFunction(const SpirvType *componentType,
+                                              QualType astComponentType) {
+  // The per-element function signature is (int32, int32, componentType) ->
+  // componentType.
+  auto *func = new (spvContext) SpirvFunction(
+      astComponentType, /*SourceLocation*/ {}, "__coopmat_perelem", false,
+      false);
+
+  const SpirvType *int32Type = spvContext.getSIntType(32);
+
+  func->addParameter(
+      new (spvContext) SpirvFunctionParameter(int32Type, false, false, {}));
+  func->addParameter(
+      new (spvContext) SpirvFunctionParameter(int32Type, false, false, {}));
+  func->addParameter(
+      new (spvContext) SpirvFunctionParameter(componentType, false, false, {}));
+
+  // Add a basic block with a return of an undef value.
+  auto *bb = new (spvContext) SpirvBasicBlock("entry");
+  func->addBasicBlock(bb);
+  auto *undef = new (spvContext) SpirvUndef(astComponentType);
+  auto *ret =
+      new (spvContext) SpirvReturn(SourceLocation(), undef);
+  bb->addInstruction(undef);
+  bb->addInstruction(ret);
+
+  spvBuilder.getModule()->addFunctionDeclaration(func);
+  return func;
 }
 
 SpirvInstruction *

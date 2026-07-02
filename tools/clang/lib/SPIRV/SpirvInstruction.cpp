@@ -128,6 +128,7 @@ DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvRayQueryOpKHR)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvReadClock)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvRayTracingTerminateOpKHR)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvIntrinsicInstruction)
+DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvFunctionRef)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvEmitMeshTasksEXT)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvSetMeshOutputsEXT)
 
@@ -1380,6 +1381,12 @@ SpirvIntrinsicInstruction::SpirvIntrinsicInstruction(
       instruction(opcode), operands(vecOperands.begin(), vecOperands.end()),
       capabilities(capts.begin(), capts.end()),
       extensions(exts.begin(), exts.end()), instructionSet(set) {}
+
+// SpirvFunctionRef
+SpirvFunctionRef::SpirvFunctionRef(SpirvFunction *func)
+    : SpirvInstruction(IK_FunctionRef, spv::Op::OpNop, QualType(),
+                       SourceLocation()),
+      function(func) {}
 
 SpirvEmitMeshTasksEXT::SpirvEmitMeshTasksEXT(
     SpirvInstruction *xDim, SpirvInstruction *yDim, SpirvInstruction *zDim,
